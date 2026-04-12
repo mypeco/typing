@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>タイピング防衛戦</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dexie/dist/dexie.js"></script>
+    <script src="https://unpkg.com/lucide@0.383.0/dist/umd/lucide.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'BIZ UDPGothic', sans-serif; touch-action: manipulation; background-color: #f1f5f9; overflow: hidden; }
+        .fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        
+        /* タイピングレーン背景 */
+        .typing-lane {
+            background-image: linear-gradient(to right, #e2e8f0 1px, transparent 1px), linear-gradient(to bottom, #e2e8f0 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        /* レーザー演出 */
+        .laser-beam {
+            position: absolute; height: 4px; background: #a855f7; transform-origin: left center;
+            opacity: 0.8; box-shadow: 0 0 10px #c084fc; z-index: 40; pointer-events: none;
+            transition: width 0.1s linear;
+        }
+
+        /* ガイドなしモードの隠蔽 */
+        .guide-hidden .remaining-char { opacity: 0; }
+        .guide-hidden .ruby-text { opacity: 0; }
+        .completed { color: #cbd5e1 !important; opacity: 1 !important; }
+
+        /* 運指カラーマッピング */
+        .key-lp { color: #eab308; } /* 左小指：黄色 */
+        .key-lr { color: #22c55e; } /* 左薬指：緑 */
+        .key-lm { color: #ec4899; } /* 左中指：ピンク */
+        .key-li { color: #3b82f6; } /* 左人差指：青 */
+        .key-ri { color: #06b6d4; } /* 右人差指：水色 */
+        .key-rm { color: #f472b6; } /* 右中指：ピンク */
+        .key-rr { color: #10b981; } /* 右薬指：緑 */
+        .key-rp { color: #f59e0b; } /* 右小指：オレンジ */
+        .key-other { color: #94a3b8; } /* その他：グレー */
+
+        /* ホーム画面 */
+        .home-bg {
+            background: linear-gradient(135deg, #0f0c29 0%, #1a1a4e 40%, #24243e 100%);
+            position: relative; overflow: hidden;
+        }
+        .home-bg::before {
+            content: '';
+            position: absolute; inset: 0;
+            background-image: radial-gradient(1px 1px at 10% 15%, rgba(255,255,255,0.6) 0%, transparent 100%),
+                              radial-gradient(1px 1px at 30% 60%, rgba(255,255,255,0.4) 0%, transparent 100%),
+                              radial-gradient(1.5px 1.5px at 55% 20%, rgba(255,255,255,0.7) 0%, transparent 100%),
+                              radial-gradient(1px 1px at 70% 75%, rgba(255,255,255,0.5) 0%, transparent 100%),
+                              radial-gradient(1.5px 1.5px at 85% 35%, rgba(255,255,255,0.6) 0%, transparent 100%),
+                              radial-gradient(1px 1px at 20% 85%, rgba(255,255,255,0.4) 0%, transparent 100%),
+                              radial-gradient(1px 1px at 90% 10%, rgba(255,255,255,0.5) 0%, transparent 100%),
+                              radial-gradient(1px 1px at 45% 90%, rgba(255,255,255,0.3) 0%, transparent 100%),
+                              radial-gradient(1px 1px at 65% 50%, rgba(255,255,255,0.4) 0%, transparent 100%),
+                              radial-gradient(1px 1px at 5% 45%, rgba(255,255,255,0.5) 0%, transparent 100%);
+            pointer-events: none;
+        }
+        @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-6px)} }
+        @keyframes pulse-glow { 0%,100%{box-shadow:0 0 12px rgba(167,139,250,0.4)} 50%{box-shadow:0 0 28px rgba(167,139,250,0.9)} }
+        @keyframes shimmer { 0%{background-position:200% center} 100%{background-position:-200% center} }
+        .float-anim { animation: float 3s ease-in-out infinite; }
+        .glow-anim { animation: pulse-glow 2s ease-in-out infinite; }
+        .card-btn {
+            position: relative; overflow: hidden;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        .card-btn:hover { transform: translateY(-3px) scale(1.03); }
+        .card-btn:active { transform: scale(0.96); }
+        .card-btn::after {
+            content: ''; position: absolute; inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 60%);
+            pointer-events: none;
+        }
+        .study-badge {
+            position: absolute; top: -2px; right: -2px;
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            color: #1c1917; font-size: 0.6rem; font-weight: 900;
+            padding: 2px 6px; border-radius: 0 0.75rem 0 0.75rem;
+            box-shadow: 0 2px 6px rgba(251,191,36,0.5);
+        }
+        .pt-display {
+            background: linear-gradient(90deg, #fde68a, #fbbf24, #f59e0b, #fbbf24, #fde68a);
+            background-size: 200% auto;
+            animation: shimmer 3s linear infinite;
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .left-panel { width: 260px; min-width: 260px; }
+    </style>
+</head>
+<body>
+    <div id="app" class="h-screen w-full flex flex-col relative"></div>
+
+    <script>
+        // --- 1. 出題データ（文字列とオブジェクトのハイブリッド） ---
+        const LEVEL_DATA = {
+            "go_a":  { label: "あ行×10", color: "bg-sky-400",  noShuffle: true, words: Array.from({length:10}, ()=>"あいうえお") },
+            "go_ka": { label: "か行×10", color: "bg-sky-400",  noShuffle: true, words: Array.from({length:10}, ()=>"かきくけこ") },
+            "go_sa": { label: "さ行×10", color: "bg-sky-400",  noShuffle: true, words: Array.from({length:10}, ()=>"さしすせそ") },
+            "go_ta": { label: "た行×10", color: "bg-sky-400",  noShuffle: true, words: Array.from({length:10}, ()=>"たちつてと") },
+            "go_na": { label: "な行×10", color: "bg-sky-400",  noShuffle: true, words: Array.from({length:10}, ()=>"なにぬねの") },
+            "go_ha": { label: "は行×10", color: "bg-sky-400",  noShuffle: true, words: Array.from({length:10}, ()=>"はひふへほ") },
+            "go_ma": { label: "ま行×10", color: "bg-sky-400",  noShuffle: true, words: Array.from({length:10}, ()=>"まみむめも") },
+            "go_ya": { label: "や行×10", color: "bg-sky-400",  noShuffle: true, words: Array.from({length:10}, ()=>"やゆよ") },
+            "go_ra": { label: "ら行×10", color: "bg-sky-400",  noShuffle: true, words: Array.from({length:10}, ()=>"らりるれろ") },
+            "go_wa": { label: "わ行×10", color: "bg-sky-400",  noShuffle: true, words: Array.from({length:10}, ()=>"わをん") },
+            "gojuon": { label: "ごじゅうおん（じゅんばん）", color: "bg-blue-500", noShuffle: true, desc: "あ行からわ行まで じゅんばんどおりにうとう！\nぜんぶで10もん。どこまでおぼえているかな？", words: ["あいうえお","かきくけこ","さしすせそ","たちつてと","なにぬねの","はひふへほ","まみむめも","やゆよ","らりるれろ","わをん"] },
+            "bo_a": { label: "あ段×5", desc: "たてによむと「あ・か・さ・た・な・は・ま・や・ら・わ」！", color: "bg-pink-400", noShuffle: true, words: Array.from({length:5}, ()=>"あかさたなはまやらわ") },
+            "bo_i": { label: "い段×5", desc: "たてによむと「い・き・し・ち・に・ひ・み・り」！", color: "bg-pink-400", noShuffle: true, words: Array.from({length:5}, ()=>"いきしちにひみりい") },
+            "bo_u": { label: "う段×5", desc: "たてによむと「う・く・す・つ・ぬ・ふ・む・ゆ・る」！", color: "bg-pink-400", noShuffle: true, words: Array.from({length:5}, ()=>"うくすつぬふむゆるう") },
+            "bo_e": { label: "え段×5", desc: "たてによむと「え・け・せ・て・ね・へ・め・れ」！", color: "bg-pink-400", noShuffle: true, words: Array.from({length:5}, ()=>"えけせてねへめれえ") },
+            "bo_o": { label: "お段×5", desc: "たてによむと「お・こ・そ・と・の・ほ・も・よ・ろ・を」！", color: "bg-pink-400", noShuffle: true, words: Array.from({length:5}, ()=>"おこそとのほもよろを") },
+            "youon": { label: "きゃ〜りゃ行", desc: "「きゃきゅきょ」のような 小さい「ゃゅょ」をつかった文字だよ。\n2文字セットで1つのかな。ゆっくり確認しながらうとう！", color: "bg-purple-500", words: [
+                "きゃきゅきょ","しゃしゅしょ","ちゃちゅちょ","にゃにゅにょ","ひゃひゅひょ","みゃみゅみょ","りゃりゅりょ",
+                "きゃきゅきょ","しゃしゅしょ","ちゃちゅちょ","にゃにゅにょ","ひゃひゅひょ","みゃみゅみょ","りゃりゅりょ"
+            ] },
+            "2a": { label: "2文字（あ）", color: "bg-orange-400", words: ["あか","あお","あめ","あり","あし","あな","あさ","あと","あい","あま"] },
+            "2i": { label: "2文字（い）", color: "bg-orange-400", words: ["いえ","いか","いし","いぬ","いま","いけ","いも","いろ","いと","いわ"] },
+            "2u": { label: "2文字（う）", color: "bg-orange-400", words: ["うみ","うし","うた","うま","うそ","うで","うに","うめ","うら","うえ"] },
+            "2e": { label: "2文字（え）", color: "bg-orange-400", words: ["えき","えだ","えほん","えり","えのき","えびす","えがお","えつき","えんぴつ","えり"] },
+            "2o": { label: "2文字（お）", color: "bg-orange-400", words: ["おに","おか","おと","おや","おす","おり","おき","おも","おかし","おそら"] },
+            "school": { label: "がっこう", color: "bg-teal-500", words: ["おはよう","ありがとう","ごめんなさい","てつだって","かして","いっしょに","わからない","さようなら","やめて","またね"] },
+            
+            "soc4_all": { 
+                label: "小4 社会", color: "bg-amber-500", study: true, desc: "小4社会の大事なことばをうとう！\n⭐ポイント3倍！",
+                words: [
+                    { display: "県庁所在地", ruby: "けんちょうしょざいち" }, { display: "持続可能な社会", ruby: "じぞくかのうなしゃかい" },
+                    { display: "都道府県", ruby: "とどうふけん" }, { display: "浄水場", ruby: "じょうすいじょう" },
+                    { display: "避難所", ruby: "ひなんじょ" }, { display: "再利用", ruby: "さいりよう" },
+                    { display: "資源", ruby: "しげん" }, { display: "不燃ごみ", ruby: "ふねんごみ" },
+                    { display: "清掃工場", ruby: "せいそうこうじょう" }, { display: "埋め立て地", ruby: "うめたてち" },
+                    { display: "下水道", ruby: "げすいどう" }, { display: "ダム", ruby: "だむ" },
+                    { display: "分別の徹底", ruby: "ぶんべつのてってい" }, { display: "太陽光発電", ruby: "たいようこうはつでん" },
+                    { display: "節水", ruby: "せっすい" }
+                ] 
+            },
+            "map_all": { 
+                label: "地図記号", color: "bg-amber-600", study: true, desc: "地図にのっている記号の読み方をうとう！\n⭐ポイント3倍！",
+                words: [
+                    { display: "<img src='./images/kouban.svg' class='w-10 h-10'>", kanji: "交番", ruby: "こうばん" },
+                    { display: "<img src='./images/shoubousho.svg' class='w-10 h-10'>", kanji: "消防署", ruby: "しょうぼうしょ" },
+                    { display: "<img src='./images/jinja.svg' class='w-10 h-10'>", kanji: "神社", ruby: "じんじゃ" },
+                    { display: "<img src='./images/toshokan.svg' class='w-10 h-10'>", kanji: "図書館", ruby: "としょかん" },
+                    { display: "<img src='./images/hakubutsukan.svg' class='w-10 h-10'>", kanji: "博物館", ruby: "はくぶつかん" },
+                    { display: "<img src='./images/shiroato.png' class='w-10 h-10'>", kanji: "城跡", ruby: "しろあと" },
+                    { display: "<img src='./images/onsen.svg' class='w-10 h-10'>", kanji: "温泉", ruby: "おんせん" }
+                ] 
+            },
+            "sci_star": { label: "小4 理科（星）", color: "bg-indigo-600", study: true, words: [
+                { display: "夏の大三角", ruby: "なつのだいさんかく" }, { display: "オリオン座", ruby: "おりおんざ" },
+                { display: "北極星", ruby: "ほっきょくせい" }, { display: "カシオペヤ座", ruby: "かしおぺやざ" },
+                { display: "月食", ruby: "げっしょく" }, { display: "満月", ruby: "まんげつ" },
+                { display: "三日月", ruby: "みかづき" }, { display: "天の川", ruby: "あまのがわ" },
+                { display: "さそり座", ruby: "さそりざ" }, { display: "冬の大三角", ruby: "ふゆのだいさんかく" }
+            ]},
+            "math_shape": { label: "小4 算数（図形）", color: "bg-emerald-600", study: true, words: [
+                { display: "平行四辺形", ruby: "へいこうしへんけい" }, { display: "ひし形", ruby: "ひしがた" },
+                { display: "台形", ruby: "だいけい" }, { display: "垂直", ruby: "すいちょく" },
+                { display: "平行", ruby: "へいこう" }, { display: "対角線", ruby: "たいかくせん" },
+                { display: "分度器", ruby: "ぶんどき" }, { display: "角度", ruby: "かくど" },
+                { display: "面積", ruby: "めんせき" }, { display: "直角", ruby: "ちょっかく" }
+            ]},
+            "kokugo_idiom": { label: "小4 国語（慣用句）", color: "bg-red-400", study: true, words: [
+                { display: "耳を貸す", ruby: "みみをかす" }, { display: "目が回る", ruby: "めがまわる" },
+                { display: "口を出す", ruby: "くちをだす" }, { display: "手を引く", ruby: "てをひく" },
+                { display: "足が出る", ruby: "あしがでる" }, { display: "胸を張る", ruby: "むねをはる" },
+                { display: "腹が立つ", ruby: "はらがたつ" }, { display: "肩を並べる", ruby: "かたをならべる" },
+                { display: "首を長くする", ruby: "くびをながくする" }, { display: "背伸びする", ruby: "せのびする" }
+            ]}
+        };
+
+        // --- 2. ローマ字変換ロジック（柔軟・分岐許容型） ---
+        const ROMAJI_MAP = {
+            'あ':['a'],'い':['i'],'う':['u'],'え':['e'],'お':['o'],
+            'か':['ka'],'き':['ki'],'く':['ku'],'け':['ke'],'こ':['ko'],
+            'さ':['sa'],'し':['si','shi','ci'],'す':['su'],'せ':['se'],'そ':['so'],
+            'た':['ta'],'ち':['ti','chi'],'つ':['tu','tsu'],'て':['te'],'と':['to'],
+            'な':['na'],'に':['ni'],'ぬ':['nu'],'ね':['ne'],'の':['no'],
+            'は':['ha'],'ひ':['hi'],'ふ':['hu','fu'],'へ':['he'],'ほ':['ho'],
+            'ま':['ma'],'み':['mi'],'む':['mu'],'め':['me'],'も':['mo'],
+            'や':['ya'],'ゆ':['yu'],'よ':['yo'],
+            'ら':['ra'],'り':['ri'],'る':['ru'],'れ':['re'],'ろ':['ro'],
+            'わ':['wa'],'を':['wo'],
+            'が':['ga'],'ぎ':['gi'],'ぐ':['gu'],'げ':['ge'],'ご':['go'],
+            'ざ':['za'],'じ':['zi','ji'],'ず':['zu'],'ぜ':['ze'],'ぞ':['zo'],
+            'だ':['da'],'ぢ':['di','ji'],'づ':['du','zu'],'で':['de'],'ど':['do'],
+            'ば':['ba'],'び':['bi'],'ぶ':['bu'],'べ':['be'],'ぼ':['bo'],
+            'ぱ':['pa'],'ぴ':['pi'],'ぷ':['pu'],'ぺ':['pe'],'ぽ':['po'],
+            'きゃ':['kya'],'きゅ':['kyu'],'きょ':['kyo'],
+            'しゃ':['sya','sha'],'しゅ':['syu','shu'],'しょ':['syo','sho'],
+            'ちゃ':['tya','cha'],'ちゅ':['tyu','chu'],'ちょ':['tyo','cho'],
+            'にゃ':['nya'],'にゅ':['nyu'],'にょ':['nyo'],
+            'ひゃ':['hya'],'ひゅ':['hyu'],'ひょ':['hyo'],
+            'みゃ':['mya'],'みゅ':['myu'],'みょ':['myo'],
+            'りゃ':['rya'],'りゅ':['ryu'],'りょ':['ryo'],
+            'ぎゃ':['gya'],'ぎゅ':['gyu'],'ぎょ':['gyo'],
+            'じゃ':['zya','ja'],'じゅ':['zyu','ju'],'じょ':['zyo','jo'],
+            'びゃ':['bya'],'びゅ':['byu'],'びょ':['byo'],
+            'ぴゃ':['pya'],'ぴゅ':['pyu'],'ぴょ':['pyo'],
+            'ー':['-']
+        };
+
+        // 全ての有効なローマ字パターンの配列を生成する関数（先頭ほど推奨＝訓令式ベース）
+        function getValidRomajis(kana) {
+            if (!kana || kana.length === 0) return [""];
+            let res = [];
+
+            // 拗音など2文字マッチ
+            if (kana.length >= 2) {
+                const two = kana.substring(0, 2);
+                if (ROMAJI_MAP[two]) {
+                    const suffixes = getValidRomajis(kana.substring(2));
+                    for (const r of ROMAJI_MAP[two]) {
+                        for (const s of suffixes) res.push(r + s);
+                    }
+                    return res;
+                }
+            }
+
+            const one = kana[0];
+
+            // 「ん」の特別処理
+            if (one === 'ん') {
+                const suffixes = getValidRomajis(kana.substring(1));
+                // 次に母音・や行・な行が来る場合は「nn」必須
+                const requiresNN = kana.length > 1 && /^[あいうえおやゆよなにぬねの]/.test(kana[1]);
+                for (const s of suffixes) {
+                    if (requiresNN) {
+                        res.push('nn' + s);
+                    } else {
+                        res.push('n' + s);
+                        res.push('nn' + s);
+                    }
+                }
+                return res;
+            }
+
+            // 「っ」の特別処理
+            if (one === 'っ') {
+                const suffixes = getValidRomajis(kana.substring(1));
+                for (const s of suffixes) {
+                    if (s.length > 0 && /^[a-z]/.test(s[0]) && !/^[aiueo]/.test(s[0])) {
+                        res.push(s[0] + s); // 次の子音を重ねる
+                    }
+                    res.push('xtu' + s);
+                    res.push('ltu' + s);
+                }
+                return res;
+            }
+
+            // 通常の1文字マッチ
+            if (ROMAJI_MAP[one]) {
+                const suffixes = getValidRomajis(kana.substring(1));
+                for (const r of ROMAJI_MAP[one]) {
+                    for (const s of suffixes) res.push(r + s);
+                }
+                return res;
+            }
+
+            // マップにない文字（そのまま通す）
+            const suffixes = getValidRomajis(kana.substring(1));
+            for (const s of suffixes) {
+                res.push(one + s);
+            }
+            return res;
+        }
+
+        const KEY_COLOR_MAP = {
+            'Q':'key-lp','A':'key-lp','Z':'key-lp','1':'key-lp',
+            'W':'key-lr','S':'key-lr','X':'key-lr','2':'key-lr',
+            'E':'key-lm','D':'key-lm','C':'key-lm','3':'key-lm',
+            'R':'key-li','T':'key-li','F':'key-li','G':'key-li','V':'key-li','B':'key-li','4':'key-li','5':'key-li',
+            'Y':'key-ri','U':'key-ri','H':'key-ri','J':'key-ri','N':'key-ri','M':'key-ri','6':'key-ri','7':'key-ri',
+            'I':'key-rm','K':'key-rm',',':'key-rm','8':'key-rm',
+            'O':'key-rr','L':'key-rr','.':'key-rr','9':'key-rr',
+            'P':'key-rp',';':'key-rp',':':'key-rp','/':'key-rp','0':'key-rp','-':'key-rp','^':'key-rp','\\':'key-rp'
+        };
+
+        function getColoredHTML(text, typedLength) {
+            let html = "";
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+                const colorClass = KEY_COLOR_MAP[char] || 'key-other';
+                if (i < typedLength) html += `<span class="completed">${char}</span>`;
+                else html += `<span class="${colorClass} remaining-char">${char}</span>`;
+            }
+            return html;
+        }
+
+
+        // =====================================================
+        // アカウント管理 
+        // =====================================================
+        const db = new Dexie("TypingDefenseDB_v1");
+        db.version(1).stores({ users: '++id' });
+
+        const USER_COLOR_OPTIONS = [
+            { label: 'Blue',   class: 'bg-blue-100 text-blue-700',     border: 'border-blue-300',   bg: '#3b82f6' },
+            { label: 'Pink',   class: 'bg-pink-100 text-pink-700',     border: 'border-pink-300',   bg: '#ec4899' },
+            { label: 'Amber',  class: 'bg-amber-100 text-amber-700',   border: 'border-amber-300',  bg: '#f59e0b' },
+            { label: 'Green',  class: 'bg-green-100 text-green-700',   border: 'border-green-300',  bg: '#22c55e' },
+            { label: 'Purple', class: 'bg-purple-100 text-purple-700', border: 'border-purple-300', bg: '#a855f7' },
+            { label: 'Teal',   class: 'bg-teal-100 text-teal-700',     border: 'border-teal-300',   bg: '#14b8a6' },
+        ];
+        const ICON_OPTIONS = ['🐶','🐱','🐰','🐻','🐼','🐨','🐯','🦁','🚗','🚀','✈️','🚂','🚓','🚑','⚽','⚾','🏀','🎾','🍎','🍓','🍒','🍇','🍉','☀️','🌙','🌟','❄️','🌈','👑','💎','🎀','🎵'];
+
+        let currentUser = null;
+
+        async function renderProfileSelect(isCreating = false, editingUser = null) {
+            const users = await db.users.toArray();
+            let newName = editingUser ? editingUser.name : '';
+            let newIcon = editingUser ? editingUser.icon : ICON_OPTIONS[0];
+            let newColor = editingUser ? editingUser.color : USER_COLOR_OPTIONS[0];
+
+            const render = () => {
+                if (isCreating) {
+                    app.innerHTML = `
+                        <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;background:linear-gradient(135deg,#0f0c29,#1a1a4e,#24243e);">
+                            <h1 style="font-size:1.5rem;font-weight:900;color:white;margin-bottom:1.5rem;">${editingUser ? 'プロフィールをなおす' : 'あたらしくつくる'}</h1>
+                            <input id="profile-name-input" type="text" placeholder="なまえ" value="${newName}"
+                                style="width:100%;max-width:320px;text-align:center;font-size:1.4rem;font-weight:700;padding:0.75rem 1rem;border-radius:0.75rem;border:3px solid #a78bfa;background:white;outline:none;margin-bottom:1.25rem;color:#1e1b4b;"
+                            />
+                            <div style="width:100%;max-width:320px;margin-bottom:1.25rem;">
+                                <p style="font-size:0.75rem;font-weight:700;color:#c4b5fd;text-align:center;margin-bottom:0.5rem;">アイコンをえらぶ</p>
+                                <div id="icon-grid" style="display:grid;grid-template-columns:repeat(8,1fr);gap:0.3rem;background:rgba(255,255,255,0.08);border-radius:0.75rem;padding:0.6rem;max-height:9rem;overflow-y:auto;">
+                                    ${ICON_OPTIONS.map(ic => `<button onclick="selectIcon('${ic}')" id="icon-${ic}" style="font-size:1.5rem;padding:0.2rem;border-radius:0.5rem;border:2px solid ${ic===newIcon?'#a78bfa':'transparent'};background:${ic===newIcon?'rgba(167,139,250,0.2)':'transparent'};cursor:pointer;">${ic}</button>`).join('')}
+                                </div>
+                            </div>
+                            <div style="width:100%;max-width:320px;margin-bottom:1.75rem;">
+                                <p style="font-size:0.75rem;font-weight:700;color:#c4b5fd;text-align:center;margin-bottom:0.5rem;">テーマカラーをえらぶ</p>
+                                <div id="color-grid" style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap;">
+                                    ${USER_COLOR_OPTIONS.map(c => `<button onclick="selectColor('${c.label}')" id="color-${c.label}" style="width:2.5rem;height:2.5rem;border-radius:50%;background:${c.bg};border:3px solid ${c.label===newColor.label?'white':'transparent'};box-shadow:${c.label===newColor.label?'0 0 0 3px '+c.bg:'none'};cursor:pointer;transition:all 0.15s;"></button>`).join('')}
+                                </div>
+                            </div>
+                            <div style="display:flex;gap:0.75rem;width:100%;max-width:320px;">
+                                <button onclick="renderProfileSelect(false)" style="flex:1;padding:0.875rem;border-radius:999px;font-weight:700;border:none;background:rgba(255,255,255,0.1);color:white;cursor:pointer;">もどる</button>
+                                <button onclick="saveProfile()" style="flex:1;padding:0.875rem;border-radius:999px;font-weight:900;border:none;background:#7c3aed;color:white;cursor:pointer;box-shadow:0 4px 12px rgba(124,58,237,0.4);">ほぞんする</button>
+                            </div>
+                        </div>
+                    `;
+                    document.getElementById('profile-name-input').addEventListener('input', e => { newName = e.target.value; });
+                } else {
+                    app.innerHTML = `
+                        <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;background:linear-gradient(135deg,#0f0c29,#1a1a4e,#24243e);">
+                            <div style="font-size:2.5rem;margin-bottom:0.5rem;">🏰</div>
+                            <h1 style="font-size:1.75rem;font-weight:900;color:#a78bfa;margin-bottom:0.25rem;">タイピング防衛戦</h1>
+                            <p style="font-size:0.85rem;color:#94a3b8;margin-bottom:1.75rem;font-weight:700;">だれがあそぶ？</p>
+                            <div style="width:100%;max-width:360px;display:flex;flex-direction:column;gap:0.75rem;margin-bottom:1.25rem;">
+                                ${users.length === 0 ? '<div style="text-align:center;color:#64748b;font-weight:700;padding:2rem;">まだだれもいません</div>' : ''}
+                                ${users.map(u => `
+                                    <div style="display:flex;align-items:center;justify-content:space-between;padding:0.875rem 1rem;border-radius:1rem;background:${u.color?.bg || '#6366f1'}22;border:2px solid ${u.color?.bg || '#6366f1'}55;cursor:pointer;" onclick="loginUser(${u.id})">
+                                        <div style="display:flex;align-items:center;gap:0.875rem;">
+                                            <div style="font-size:2rem;width:3rem;height:3rem;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.12);border-radius:50%;">${u.icon}</div>
+                                            <span style="font-size:1.2rem;font-weight:900;color:white;">${u.name}</span>
+                                        </div>
+                                        <div style="display:flex;gap:0.5rem;">
+                                            <button onclick="event.stopPropagation();editUser(${u.id})" style="width:2.25rem;height:2.25rem;border-radius:50%;background:rgba(255,255,255,0.1);border:none;color:#c4b5fd;font-size:0.85rem;cursor:pointer;" title="へんしゅう">✏️</button>
+                                            <button onclick="event.stopPropagation();deleteUser(${u.id},'${u.name.replace(/'/g,"\'")}') " style="width:2.25rem;height:2.25rem;border-radius:50%;background:rgba(255,255,255,0.1);border:none;color:#fca5a5;font-size:0.85rem;cursor:pointer;" title="けす">🗑️</button>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <button onclick="renderProfileSelect(true)" style="width:100%;max-width:360px;padding:0.875rem;border-radius:999px;font-weight:700;border:2px dashed rgba(167,139,250,0.4);background:transparent;color:#a78bfa;cursor:pointer;font-size:0.95rem;">✨ あたらしくつくる</button>
+                        </div>
+                    `;
+                }
+            };
+
+            window.selectIcon = (ic) => {
+                newIcon = ic;
+                ICON_OPTIONS.forEach(i => {
+                    const el = document.getElementById(`icon-${i}`);
+                    if (el) {
+                        el.style.borderColor = i === ic ? '#a78bfa' : 'transparent';
+                        el.style.background  = i === ic ? 'rgba(167,139,250,0.2)' : 'transparent';
+                    }
+                });
+            };
+
+            window.selectColor = (label) => {
+                newColor = USER_COLOR_OPTIONS.find(c => c.label === label);
+                USER_COLOR_OPTIONS.forEach(c => {
+                    const el = document.getElementById(`color-${c.label}`);
+                    if (el) {
+                        el.style.borderColor  = c.label === label ? 'white' : 'transparent';
+                        el.style.boxShadow    = c.label === label ? `0 0 0 3px ${c.bg}` : 'none';
+                    }
+                });
+            };
+
+            window.saveProfile = async () => {
+                const nameEl = document.getElementById('profile-name-input');
+                const name = nameEl ? nameEl.value.trim() : newName.trim();
+                if (!name) return;
+                if (editingUser) {
+                    await db.users.put({ ...editingUser, name, icon: newIcon, color: newColor });
+                    await renderProfileSelect(false);
+                } else {
+                    const id = await db.users.add({ name, icon: newIcon, color: newColor, profileId: crypto.randomUUID() });
+                    loginUser(id);
+                }
+            };
+
+            window.loginUser = async (userId) => {
+                const u = await db.users.get(userId);
+                if (!u) return;
+                currentUser = u;
+                renderHome();
+            };
+
+            window.editUser = async (userId) => {
+                const u = await db.users.get(userId);
+                if (!u) return;
+                editingUser = u;
+                isCreating = true;
+                newName = u.name; newIcon = u.icon; newColor = u.color;
+                render();
+            };
+
+            window.deleteUser = async (userId, userName) => {
+                if (!confirm(`${userName} のデータをけしますか？`)) return;
+                await db.users.delete(userId);
+                await renderProfileSelect(false);
+            };
+
+            render();
+        }
+
+        // --- 3. 状態管理 ---
+        let state = {
+            mode: 'home',
+            showGuide: true,
+            gameLevel: 1,
+            currentLevel: null,
+            targetWords: [],
+            hp: 3,
+            score: 0,
+            enemies: [],
+            isPlaying: false,
+            spawnTimer: 0,
+            spawnInterval: 200,
+            lastTime: 0
+        };
+
+        function loadTotalPoints() { return parseInt(localStorage.getItem('taikun_total_points') || '0'); }
+        function saveTotalPoints(points) { localStorage.setItem('taikun_total_points', points); }
+
+        const app = document.getElementById('app');
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            
+            if (type === 'hit') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.05);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+            } else if (type === 'damage') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.3);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+            }
+        }
+
+        const CATEGORY_EMOJI = {
+            go_a:'あ', go_ka:'か', go_sa:'さ', go_ta:'た', go_na:'な',
+            go_ha:'は', go_ma:'ま', go_ya:'や', go_ra:'ら', go_wa:'わ',
+            gojuon:'📖', bo_a:'🅐', bo_i:'🅘', bo_u:'🅤', bo_e:'🅔', bo_o:'🅞', youon:'🎵', 
+            '2a':'あ', '2i':'い', '2u':'う', '2e':'え', '2o':'お',
+            school:'🏫', soc4_all:'🗾', sci_star:'⭐', map_all:'🗺️',
+            math_shape:'📐', kokugo_idiom:'💬'
+        };
+
+        function renderHome() {
+            const totalPoints = loadTotalPoints();
+
+            function lvBtn(lv, emoji, label, desc) {
+                const active = state.gameLevel === lv;
+                return `<button id="lv-btn-${lv}" onclick="selectLevel(${lv})" style="flex:1;padding:0.6rem 0.4rem;border-radius:0.75rem;font-weight:900;font-size:0.85rem;border:2px solid ${active ? '#7c3aed' : 'rgba(255,255,255,0.1)'};background:${active ? 'linear-gradient(135deg,#7c3aed,#6d28d9)' : 'rgba(255,255,255,0.06)'};color:${active ? '#fff' : 'rgba(255,255,255,0.5)'};cursor:pointer;transition:all 0.2s;box-shadow:${active ? '0 4px 16px rgba(124,58,237,0.5)' : 'none'};">${emoji} ${label}<div style="font-size:0.65rem;margin-top:2px;opacity:0.8;">${desc}</div></button>`;
+            }
+
+            function categoryCard(id) {
+                const lv = LEVEL_DATA[id];
+                if(!lv) return '';
+                const emoji = CATEGORY_EMOJI[id] || '🎮';
+                const isStudy = lv.study;
+                const wordCount = lv.words.length;
+                const colorMap = {
+                    'bg-blue-500':   ['#3b82f6','#1d4ed8'], 'bg-orange-400': ['#fb923c','#ea580c'],
+                    'bg-teal-500':   ['#14b8a6','#0f766e'], 'bg-amber-500':  ['#f59e0b','#b45309'],
+                    'bg-amber-600':  ['#d97706','#92400e'], 'bg-indigo-600': ['#4f46e5','#3730a3'],
+                    'bg-emerald-600':['#059669','#065f46'], 'bg-orange-500': ['#f97316','#c2410c'],
+                    'bg-red-400':    ['#f87171','#dc2626'], 'bg-sky-400':    ['#38bdf8','#0284c7'],
+                    'bg-pink-400':   ['#f472b6','#db2777'], 'bg-purple-500': ['#a855f7','#7e22ce'],
+                    'bg-violet-500': ['#8b5cf6','#6d28d9']
+                };
+                const [c1, c2] = colorMap[lv.color] || ['#6366f1','#4338ca'];
+                return `
+                    <button onclick="showGamePopup('${id}')" class="card-btn" style="position:relative;width:100%;padding:0.75rem 0.875rem;border-radius:1rem;background:linear-gradient(135deg,${c1},${c2});color:white;border:none;cursor:pointer;text-align:left;box-shadow:0 4px 16px rgba(0,0,0,0.3);">
+                        ${isStudy ? '<span class="study-badge">×3pt ⭐</span>' : ''}
+                        <div style="font-size:1.6rem;margin-bottom:0.2rem;line-height:1;">${emoji}</div>
+                        <div style="font-weight:900;font-size:0.95rem;line-height:1.2;">${lv.label}</div>
+                        <div style="font-size:0.65rem;opacity:0.75;margin-top:3px;">${wordCount}もん</div>
+                    </button>`;
+            }
+
+            app.innerHTML = `
+                <div class="home-bg fade-in" style="width:100%;height:100vh;display:flex;overflow:hidden;">
+                    <div class="left-panel" style="display:flex;flex-direction:column;padding:1.25rem 1rem;gap:0.75rem;overflow-y:auto;border-right:1px solid rgba(255,255,255,0.07);background:rgba(0,0,0,0.25);">
+                        <div style="text-align:center;padding-bottom:0.5rem;">
+                            <div class="float-anim" style="font-size:2.8rem;line-height:1;">🏰</div>
+                            <div style="font-size:1.05rem;font-weight:900;color:white;line-height:1.2;">タイピング<br>防衛戦</div>
+                        </div>
+
+                        ${currentUser ? `
+                        <div onclick="renderProfileSelect()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:1rem;padding:0.6rem 0.875rem;display:flex;align-items:center;gap:0.6rem;cursor:pointer;" title="ユーザーをかえる">
+                            <div style="font-size:1.4rem;width:2rem;height:2rem;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.12);border-radius:50%;">${currentUser.icon}</div>
+                            <div>
+                                <div style="font-size:0.6rem;font-weight:700;color:#94a3b8;">プレイヤー</div>
+                                <div style="font-size:0.85rem;font-weight:900;color:white;">${currentUser.name}</div>
+                            </div>
+                        </div>` : ''}
+
+                        <div class="glow-anim" style="background:rgba(124,58,237,0.3);border:1px solid rgba(167,139,250,0.4);border-radius:1rem;padding:0.875rem 1rem;">
+                            <div style="font-size:0.65rem;font-weight:700;color:#c4b5fd;margin-bottom:2px;">🏅 累計ポイント</div>
+                            <div class="pt-display" style="font-size:2rem;font-weight:900;">${totalPoints.toLocaleString()}</div>
+                            <div style="font-size:0.7rem;color:#a78bfa;font-weight:700;">pt</div>
+                            <button onclick="toggleReward()" style="width:100%;margin-top:0.5rem;padding:0.4rem;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:0.5rem;color:white;font-weight:700;font-size:0.75rem;cursor:pointer;">🎁 ご褒美をつかう</button>
+                        </div>
+
+                        <div id="reward-panel" class="hidden" style="background:rgba(91,33,182,0.6);border:1px solid rgba(167,139,250,0.3);border-radius:1rem;padding:0.75rem;">
+                            <div style="font-size:0.7rem;font-weight:700;color:#e9d5ff;margin-bottom:0.5rem;">つかうポイントをえらんでね 👇</div>
+                            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.35rem;margin-bottom:0.5rem;">
+                                ${[10,30,50,100,200,500].map(pt => `<button onclick="usePoints(${pt})" style="background:rgba(255,255,255,0.15);border:none;border-radius:0.5rem;padding:0.4rem;color:white;font-weight:900;font-size:0.75rem;cursor:pointer;">${pt}pt</button>`).join('')}
+                            </div>
+                            <div style="display:flex;gap:0.35rem;">
+                                <input id="custom-pt" type="number" min="1" placeholder="じゆうにきにゅう" style="flex:1;border-radius:0.5rem;padding:0.4rem 0.5rem;color:#1e1b4b;font-weight:700;font-size:0.75rem;border:none;min-width:0;" />
+                                <button onclick="usePointsCustom()" style="background:rgba(255,255,255,0.15);border:none;border-radius:0.5rem;padding:0.4rem 0.6rem;color:white;font-weight:900;font-size:0.75rem;cursor:pointer;">つかう</button>
+                            </div>
+                        </div>
+
+                        <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:1rem;padding:0.75rem 1rem;display:flex;align-items:center;justify-content:space-between;">
+                            <div style="font-size:0.75rem;font-weight:700;color:#cbd5e1;line-height:1.3;">ローマ字ガイド<br><span style="font-size:0.65rem;color:#94a3b8;">色・ふりがな</span></div>
+                            <button id="guide-toggle-btn" onclick="toggleGuide()" style="width:3rem;height:1.6rem;border-radius:999px;border:none;cursor:pointer;padding:3px;background:${state.showGuide ? '#7c3aed' : 'rgba(255,255,255,0.15)'};transition:background 0.3s;position:relative;flex-shrink:0;">
+                                <div id="guide-toggle-knob" style="width:1.1rem;height:1.1rem;border-radius:50%;background:white;box-shadow:0 1px 4px rgba(0,0,0,0.3);transform:translateX(${state.showGuide ? '1.3rem' : '0'});transition:transform 0.3s;"></div>
+                            </button>
+                        </div>
+
+                        <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:1rem;padding:0.75rem 1rem;">
+                            <div style="font-size:0.7rem;font-weight:700;color:#94a3b8;margin-bottom:0.5rem;">⚡ スピードレベル</div>
+                            <div style="display:flex;gap:0.4rem;">
+                                ${lvBtn(1,'🐢','Lv.1','ゆっくり')}
+                                ${lvBtn(2,'🐇','Lv.2','ふつう')}
+                                ${lvBtn(3,'🚀','Lv.3','はやい')}
+                            </div>
+                            <div id="level-pt-hint" style="font-size:0.6rem;color:#64748b;margin-top:0.4rem;text-align:center;">
+                                ガイドあり ${state.gameLevel}pt／なし ${state.gameLevel*10}pt
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="flex:1;padding:1.25rem 1.25rem 1rem;overflow-y:auto;display:flex;flex-direction:column;gap:1rem;">
+                        <div>
+                            <div style="font-size:0.7rem;font-weight:900;color:#94a3b8;letter-spacing:0.1em;margin-bottom:0.5rem;padding-left:2px;">🎹 五十音</div>
+                            <div style="display:grid;grid-template-columns:repeat(10,1fr);gap:0.4rem;margin-bottom:0.4rem;">
+                                ${['go_a','go_ka','go_sa','go_ta','go_na','go_ha','go_ma','go_ya','go_ra','go_wa'].map(categoryCard).join('')}
+                            </div>
+                            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.4rem;">
+                                ${['gojuon','youon'].map(categoryCard).join('')}
+                            </div>
+                            <div style="font-size:0.7rem;font-weight:900;color:#94a3b8;letter-spacing:0.1em;margin:0.5rem 0 0.4rem;padding-left:2px;">🌸 母音くくり</div>
+                            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.4rem;">
+                                ${['bo_a','bo_i','bo_u','bo_e','bo_o'].map(categoryCard).join('')}
+                            </div>
+                        </div>
+                        <div>
+                            <div style="font-size:0.7rem;font-weight:900;color:#94a3b8;letter-spacing:0.1em;margin-bottom:0.5rem;padding-left:2px;">📚 きほん</div>
+                            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.4rem;">
+                                ${['2a','2i','2u','2e','2o','school'].map(categoryCard).join('')}
+                            </div>
+                        </div>
+                        <div>
+                            <div style="font-size:0.7rem;font-weight:900;letter-spacing:0.1em;margin-bottom:0.5rem;padding-left:2px;background:linear-gradient(90deg,#fbbf24,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">⭐ べんきょう（×3ポイント）</div>
+                            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.5rem;">
+                                ${['soc4_all','sci_star','map_all','math_shape','kokugo_idiom'].map(categoryCard).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.toggleGuide = () => {
+            state.showGuide = !state.showGuide;
+            const btn = document.getElementById('guide-toggle-btn');
+            const knob = document.getElementById('guide-toggle-knob');
+            if (btn && knob) {
+                btn.style.background = state.showGuide ? '#7c3aed' : 'rgba(255,255,255,0.15)';
+                knob.style.transform = `translateX(${state.showGuide ? '1.3rem' : '0'})`;
+            }
+        };
+
+        window.selectLevel = (lv) => {
+            state.gameLevel = lv;
+            [1, 2, 3].forEach(n => {
+                const b = document.getElementById(`lv-btn-${n}`);
+                if (!b) return;
+                if (n === lv) {
+                    b.style.background = 'linear-gradient(135deg,#7c3aed,#6d28d9)';
+                    b.style.borderColor = '#7c3aed';
+                    b.style.color = '#fff';
+                    b.style.boxShadow = '0 4px 16px rgba(124,58,237,0.5)';
+                } else {
+                    b.style.background = 'rgba(255,255,255,0.06)';
+                    b.style.borderColor = 'rgba(255,255,255,0.1)';
+                    b.style.color = 'rgba(255,255,255,0.5)';
+                    b.style.boxShadow = 'none';
+                }
+            });
+        };
+
+        window.toggleReward = () => document.getElementById('reward-panel')?.classList.toggle('hidden');
+
+        window.usePoints = (pt) => {
+            const current = loadTotalPoints();
+            if (pt > current) { alert(`ポイントが足りません！\n今のポイント: ${current}pt`); return; }
+            if (confirm(`${pt}ptつかいますか？\n残り: ${current - pt}pt になります`)) {
+                saveTotalPoints(current - pt); renderHome();
+            }
+        };
+
+        window.usePointsCustom = () => {
+            const input = document.getElementById('custom-pt');
+            const pt = parseInt(input ? input.value : 0);
+            if (!pt || pt <= 0) { alert('ポイントをにゅうりょくしてください'); return; }
+            window.usePoints(pt);
+        };
+
+        window.showGamePopup = (levelId) => {
+            const lv = LEVEL_DATA[levelId];
+            const emoji = CATEGORY_EMOJI[levelId] || '🎮';
+            const descHtml = (lv.desc || '').replace(/\n/g, '<br>');
+            const colorMap = {
+                'bg-sky-400': '#38bdf8', 'bg-blue-500': '#3b82f6', 'bg-pink-400': '#f472b6',
+                'bg-purple-500': '#a855f7', 'bg-violet-500': '#8b5cf6', 'bg-orange-400': '#fb923c',
+                'bg-teal-500': '#14b8a6', 'bg-amber-500': '#f59e0b', 'bg-amber-600': '#d97706',
+                'bg-indigo-600': '#4f46e5', 'bg-emerald-600': '#059669', 'bg-red-400': '#f87171',
+            };
+            const accentColor = colorMap[lv.color] || '#7c3aed';
+
+            const overlay = document.createElement('div');
+            overlay.id = 'game-popup-overlay';
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.65);backdrop-filter:blur(4px);animation:fadeIn 0.2s ease;';
+            overlay.innerHTML = `
+                <div style="background:linear-gradient(135deg,#1e1b4b,#312e81);border:2px solid ${accentColor}55;border-radius:1.5rem;padding:2rem 2rem 1.75rem;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.5);position:relative;animation:fadeIn 0.25s ease;">
+                    <button onclick="document.getElementById('game-popup-overlay').remove()" style="position:absolute;top:0.875rem;right:0.875rem;width:2rem;height:2rem;border-radius:50%;background:rgba(255,255,255,0.1);border:none;color:rgba(255,255,255,0.5);font-size:1rem;cursor:pointer;">✕</button>
+                    <div style="text-align:center;margin-bottom:1.25rem;">
+                        <div style="font-size:3rem;line-height:1;margin-bottom:0.5rem;">${emoji}</div>
+                        <div style="font-size:1.3rem;font-weight:900;color:white;">${lv.label}</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.07);border-radius:0.875rem;padding:1rem 1.125rem;margin-bottom:1.5rem;">
+                        <div style="font-size:0.9rem;font-weight:700;color:rgba(255,255,255,0.85);text-align:center;">${descHtml}</div>
+                    </div>
+                    <button onclick="document.getElementById('game-popup-overlay').remove(); startGame('${levelId}')" style="width:100%;padding:1rem;border-radius:999px;border:none;background:linear-gradient(135deg,${accentColor},${accentColor}cc);color:white;font-size:1.2rem;font-weight:900;cursor:pointer;">🚀 スタート！</button>
+                </div>
+            `;
+            app.appendChild(overlay);
+        };
+
+        window.startGame = (levelId) => {
+            state.mode = 'game';
+            state.currentLevel = levelId;
+            const lvDef = LEVEL_DATA[levelId];
+            state.targetWords = lvDef.noShuffle ? [...lvDef.words] : [...lvDef.words].sort(() => 0.5 - Math.random());
+            state.hp = 3; state.score = 0; state.enemies = []; state.spawnTimer = 0;
+            state.spawnInterval = 200; state.isPlaying = true; state.lastTime = performance.now();
+            renderGameUI();
+            window.addEventListener('keydown', handleTypingInput);
+            requestAnimationFrame(gameLoop);
+        };
+
+        function renderGameUI() {
+            app.innerHTML = `
+                <div class="h-full w-full relative typing-lane overflow-hidden">
+                    <div class="absolute top-0 left-0 w-full p-4 flex justify-between items-start z-30 pointer-events-none">
+                        <div class="flex flex-col gap-2 pointer-events-auto">
+                            <button onclick="quitGame()" class="self-start bg-slate-500 text-white px-6 py-2 rounded-full font-bold shadow-lg hover:bg-slate-600 transition-colors">やめる</button>
+                            <div class="bg-white/95 px-5 py-2 rounded-xl border border-slate-200 shadow-lg self-start text-center">
+                                <div class="text-xs font-bold text-slate-400">SCORE</div>
+                                <div class="text-3xl font-black text-violet-600" id="typing-score">0</div>
+                            </div>
+                        </div>
+                        <div class="flex space-x-2 text-3xl drop-shadow-md" id="hp-container">${'❤️'.repeat(state.hp)}</div>
+                    </div>
+
+                    <div class="absolute bottom-0 left-0 w-full z-30 flex justify-center pb-2 pointer-events-none select-none">
+                        <div class="flex items-center bg-white/75 backdrop-blur-sm px-6 py-2 rounded-2xl shadow-md" style="gap:0;">
+                            <div class="flex flex-col items-center" style="margin-right:30px;"><div class="w-6 h-6 rounded-full shadow-md" style="background:#eab308;"></div></div>
+                            <div class="flex flex-col items-center" style="margin-right:30px;"><div class="w-6 h-6 rounded-full shadow-md" style="background:#22c55e;"></div></div>
+                            <div class="flex flex-col items-center" style="margin-right:30px;"><div class="w-6 h-6 rounded-full shadow-md" style="background:#ec4899;"></div></div>
+                            <div class="flex flex-col items-center" style="margin-right:40px;"><div class="w-6 h-6 rounded-full shadow-md" style="background:#3b82f6;"></div></div>
+                            <div class="text-3xl leading-none pb-1" style="margin-right:8px;">✋</div>
+                            <div class="text-3xl leading-none pb-1" style="margin-right:40px;">🤚</div>
+                            <div class="flex flex-col items-center" style="margin-right:30px;"><div class="w-6 h-6 rounded-full shadow-md" style="background:#06b6d4;"></div></div>
+                            <div class="flex flex-col items-center" style="margin-right:30px;"><div class="w-6 h-6 rounded-full shadow-md" style="background:#f472b6;"></div></div>
+                            <div class="flex flex-col items-center" style="margin-right:30px;"><div class="w-6 h-6 rounded-full shadow-md" style="background:#10b981;"></div></div>
+                            <div class="flex flex-col items-center"><div class="w-6 h-6 rounded-full shadow-md" style="background:#f59e0b;"></div></div>
+                        </div>
+                    </div>
+
+                    <div id="base-zone" class="absolute left-0 bottom-0 h-full w-32 bg-gradient-to-r from-blue-100/50 to-transparent z-10 border-r-4 border-blue-300 flex items-center justify-center">
+                        <div class="text-6xl drop-shadow-lg">🏰</div>
+                    </div>
+                    <div id="enemy-container" class="absolute inset-0 z-20 overflow-hidden ${state.showGuide ? '' : 'guide-hidden'}"></div>
+                </div>
+            `;
+        }
+
+        window.quitGame = () => {
+            state.isPlaying = false;
+            window.removeEventListener('keydown', handleTypingInput);
+            renderHome();
+        };
+
+        function spawnEnemy() {
+            if (state.targetWords.length === 0) return;
+            
+            const targetData = state.targetWords.pop();
+            const displayHtml = typeof targetData === 'string' ? targetData : targetData.display;
+            const rubyText = typeof targetData === 'string' ? targetData : targetData.ruby;
+            const displayLabel = targetData.kanji || rubyText;
+            
+            // 全ての有効なローマ字（大文字）を配列で取得
+            const validRomajis = getValidRomajis(rubyText).map(r => r.toUpperCase());
+            const displayRomaji = validRomajis[0]; // 初期表示は配列の先頭（訓令式優先）
+
+            const yPos = 8 + Math.random() * 42; 
+            const el = document.createElement('div');
+            el.className = "absolute flex flex-col items-center bg-white px-4 py-3 rounded-2xl shadow-xl border-b-4 border-violet-400 transition-transform duration-75";
+            el.style.left = "100%";
+            el.style.top = yPos + "%";
+            
+            const baseSpeed = [0.04, 0.07, 0.12][state.gameLevel - 1];
+            const accel = [0.00003, 0.00005, 0.00008][state.gameLevel - 1];
+            const currentSpeed = baseSpeed + (state.score * accel);
+            
+            const coloredHTML = getColoredHTML(displayRomaji, 0);
+            const uniqueId = Date.now() + Math.random();
+
+            el.innerHTML = `
+                <div class="text-4xl flex items-center justify-center font-black text-slate-800 whitespace-nowrap min-h-[3rem]">${displayHtml}</div>
+                <div class="text-sm font-bold text-slate-600 whitespace-nowrap mt-1 ruby-text">${displayLabel}</div>
+                <div class="font-mono font-bold text-3xl tracking-widest mt-2 bg-slate-900 px-4 py-2 rounded-xl shadow-inner" id="romaji-${uniqueId}">
+                    ${coloredHTML}
+                </div>
+            `;
+            document.getElementById('enemy-container').appendChild(el);
+
+            state.enemies.push({
+                id: uniqueId,
+                word: rubyText,
+                validRomajis: validRomajis,
+                typed: "",
+                displayRomaji: displayRomaji,
+                x: 100, y: yPos, speed: currentSpeed, element: el
+            });
+        }
+
+        function handleTypingInput(e) {
+            if (!state.isPlaying) return;
+            const key = e.key.toUpperCase();
+            if (key.length !== 1) return;
+
+            const sortedEnemies = [...state.enemies].sort((a, b) => a.x - b.x);
+            
+            // ① すでに打ちかけで、かつ次の文字が一致する敵を最優先
+            let target = sortedEnemies.find(en => en.typed.length > 0 && en.validRomajis.some(r => r.startsWith(en.typed + key)));
+            // ② なければ、手付かずで最初の文字が一致する敵を探す
+            if (!target) target = sortedEnemies.find(en => en.validRomajis.some(r => r.startsWith(en.typed + key)));
+
+            if (target) {
+                target.typed += key;
+                // 打たれたキーに合致するパターンのものだけに絞り込む
+                target.validRomajis = target.validRomajis.filter(r => r.startsWith(target.typed));
+                // 表示を動的に切り替え（一番適したパターンを再設定）
+                target.displayRomaji = target.validRomajis[0];
+
+                playSound('hit');
+
+                const baseZone = document.getElementById('base-zone');
+                const baseRect = baseZone.getBoundingClientRect();
+                const startX = baseRect.left + baseRect.width / 2;
+                const startY = baseRect.top + baseRect.height / 2;
+
+                const beam = document.createElement('div');
+                beam.className = "laser-beam";
+                beam.style.top = startY + "px";
+                beam.style.left = startX + "px";
+                
+                const rect = target.element.getBoundingClientRect();
+                const enemyX = rect.left + rect.width / 2;
+                const enemyY = rect.top + rect.height / 2;
+                
+                beam.style.width = Math.sqrt(Math.pow(enemyX-startX,2) + Math.pow(enemyY-startY,2)) + "px";
+                beam.style.transform = `rotate(${Math.atan2(enemyY-startY, enemyX-startX) * 180 / Math.PI}deg)`;
+                app.appendChild(beam);
+                setTimeout(() => beam.remove(), 100);
+
+                const box = document.getElementById(`romaji-${target.id}`);
+                if (box) box.innerHTML = getColoredHTML(target.displayRomaji, target.typed.length);
+
+                target.element.classList.add('scale-110', 'border-red-500');
+                setTimeout(() => target.element.classList.remove('scale-110', 'border-red-500'), 50);
+
+                // 文字が最後まで打ち終わったか判定
+                if (target.typed === target.displayRomaji) {
+                    target.element.remove();
+                    state.enemies = state.enemies.filter(e => e.id !== target.id);
+                    const studyBonus = LEVEL_DATA[state.currentLevel]?.study ? 3 : 1;
+                    state.score += (state.showGuide ? 1 : 10) * state.gameLevel * studyBonus;
+                    document.getElementById('typing-score').textContent = state.score;
+                    if (state.targetWords.length === 0 && state.enemies.length === 0) finishGame(true);
+                }
+            }
+        }
+
+        function gameLoop(timestamp) {
+            if (!state.isPlaying) return;
+            const dt = timestamp - state.lastTime;
+            state.lastTime = timestamp;
+
+            state.spawnTimer++;
+            if (state.spawnTimer > state.spawnInterval && state.enemies.length < 4) {
+                spawnEnemy();
+                state.spawnTimer = 0;
+                if (state.spawnInterval > 80) state.spawnInterval -= 1;
+            }
+            
+            const baseRight = document.getElementById('base-zone')?.getBoundingClientRect().right || 0;
+
+            state.enemies.forEach(en => {
+                en.x -= en.speed;
+                en.element.style.left = en.x + "%";
+                en.element.style.zIndex = Math.floor(1000 - en.x * 10);
+                if (baseRight > 0 && en.element.getBoundingClientRect().left < baseRight - 20) damageBase(en);
+            });
+            requestAnimationFrame(gameLoop);
+        }
+
+        function damageBase(enemy) {
+            const enemyRect = enemy.element.getBoundingClientRect();
+            const boom = document.createElement('div');
+            boom.textContent = '💥';
+            boom.style.cssText = `position:absolute;left:${enemyRect.left + enemyRect.width/2}px;top:${enemyRect.top + enemyRect.height/2}px;font-size:3rem;transform:translate(-50%,-50%);z-index:50;pointer-events:none;transition:opacity 0.5s ease,transform 0.5s ease;`;
+            app.appendChild(boom);
+            setTimeout(() => { boom.style.opacity='0'; boom.style.transform='translate(-50%,-80%) scale(1.5)'; }, 50);
+            setTimeout(() => boom.remove(), 600);
+
+            enemy.element.remove();
+            state.enemies = state.enemies.filter(e => e.id !== enemy.id);
+            playSound('damage');
+            
+            state.hp--;
+            const hpContainer = document.getElementById('hp-container');
+            if (hpContainer) hpContainer.textContent = '❤️'.repeat(state.hp);
+            if (state.hp <= 0) finishGame(false);
+        }
+
+        function finishGame(isClear) {
+            state.isPlaying = false;
+            window.removeEventListener('keydown', handleTypingInput);
+            const newTotal = loadTotalPoints() + state.score;
+            saveTotalPoints(newTotal);
+            
+            const overlay = document.createElement('div');
+            if (isClear) {
+                overlay.className = "absolute inset-0 z-50 flex flex-col items-center justify-center fade-in";
+                overlay.style.background = "linear-gradient(135deg, #fef08a 0%, #fbcfe8 40%, #a5f3fc 100%)";
+                overlay.innerHTML = `
+                    <div style="font-size:5rem;animation:bounce 0.6s infinite alternate;">🎉</div>
+                    <div style="font-size:3rem;font-weight:900;color:#7c3aed;margin:0.5rem 0;letter-spacing:2px;text-shadow:2px 2px 0 #fff;">やったね！</div>
+                    <div style="font-size:1.3rem;font-weight:700;color:#be185d;margin-bottom:1.5rem;">ぜんぶたおした！すごい！！</div>
+                    <div style="background:white;border-radius:1.5rem;padding:1.5rem 2rem;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.12);min-width:260px;margin-bottom:1.5rem;">
+                        <div style="color:#6b7280;font-weight:700;font-size:0.85rem;margin-bottom:0.25rem;">今回のポイント</div>
+                        <div style="color:#7c3aed;font-weight:900;font-size:2.8rem;">+${state.score} <span style="font-size:1.2rem;">pt</span></div>
+                        <div style="border-top:2px solid #f3f4f6;margin:0.75rem 0;padding-top:0.75rem;">
+                            <div style="color:#9ca3af;font-weight:700;font-size:0.8rem;margin-bottom:0.2rem;">🏅 累計ポイント</div>
+                            <div style="color:#374151;font-weight:900;font-size:2rem;">${newTotal.toLocaleString()} pt</div>
+                        </div>
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:0.75rem;width:100%;max-width:280px;">
+                        <button onclick="startGame('${state.currentLevel}')" style="padding:1rem;background:#7c3aed;color:white;border:none;border-radius:1rem;font-weight:900;font-size:1.1rem;box-shadow:0 4px 12px rgba(124,58,237,0.4);cursor:pointer;">もう一回！</button>
+                        <button onclick="renderHome()" style="padding:1rem;background:white;color:#6b7280;border:none;border-radius:1rem;font-weight:700;font-size:1rem;box-shadow:0 2px 8px rgba(0,0,0,0.08);cursor:pointer;">もどる</button>
+                    </div>
+                    <style>@keyframes bounce{from{transform:translateY(0) scale(1);}to{transform:translateY(-20px) scale(1.1);}}</style>
+                `;
+            } else {
+                overlay.className = "absolute inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex flex-col items-center justify-center fade-in";
+                overlay.innerHTML = `
+                    <div class="bg-white p-10 rounded-3xl text-center max-w-md w-full shadow-2xl">
+                        <div class="text-7xl mb-6">💥</div>
+                        <h2 class="text-4xl font-black text-slate-800 mb-4">ざんねん！</h2>
+                        <div class="bg-slate-50 rounded-2xl p-4 mb-6">
+                            <p class="text-slate-500 font-bold text-sm mb-1">今回のポイント</p>
+                            <p class="text-violet-600 font-black text-4xl">+${state.score} pt</p>
+                            <div class="border-t border-slate-200 mt-3 pt-3">
+                                <p class="text-slate-400 font-bold text-sm mb-1">🏅 累計ポイント</p>
+                                <p class="text-slate-700 font-black text-3xl">${newTotal.toLocaleString()} pt</p>
+                            </div>
+                        </div>
+                        <div class="space-y-3">
+                            <button onclick="startGame('${state.currentLevel}')" class="w-full py-4 bg-violet-600 text-white rounded-xl font-bold text-lg shadow-lg active:scale-95 transition-transform">もう一回</button>
+                            <button onclick="renderHome()" class="w-full py-4 bg-slate-200 text-slate-600 rounded-xl font-bold text-lg active:scale-95 transition-transform">もどる</button>
+                        </div>
+                    </div>
+                `;
+            }
+            app.appendChild(overlay);
+        }
+        renderProfileSelect();
+    </script>
+</body>
+</html>
