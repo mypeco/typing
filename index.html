@@ -98,84 +98,130 @@
     <div id="app" class="h-screen w-full flex flex-col relative"></div>
 
     <script>
-        // --- 1. 出題データ（文字列とオブジェクトのハイブリッド） ---
-        const LEVEL_DATA = {
-            "go_a":  { label: "あ行×10", color: "bg-sky-400",  noShuffle: true, words: Array.from({length:10}, ()=>"あいうえお") },
-            "go_ka": { label: "か行×10", color: "bg-sky-400",  noShuffle: true, words: Array.from({length:10}, ()=>"かきくけこ") },
-            "go_sa": { label: "さ行×10", color: "bg-sky-400",  noShuffle: true, words: Array.from({length:10}, ()=>"さしすせそ") },
-            "go_ta": { label: "た行×10", color: "bg-sky-400",  noShuffle: true, words: Array.from({length:10}, ()=>"たちつてと") },
-            "go_na": { label: "な行×10", color: "bg-sky-400",  noShuffle: true, words: Array.from({length:10}, ()=>"なにぬねの") },
-            "go_ha": { label: "は行×10", color: "bg-sky-400",  noShuffle: true, words: Array.from({length:10}, ()=>"はひふへほ") },
-            "go_ma": { label: "ま行×10", color: "bg-sky-400",  noShuffle: true, words: Array.from({length:10}, ()=>"まみむめも") },
-            "go_ya": { label: "や行×10", color: "bg-sky-400",  noShuffle: true, words: Array.from({length:10}, ()=>"やゆよ") },
-            "go_ra": { label: "ら行×10", color: "bg-sky-400",  noShuffle: true, words: Array.from({length:10}, ()=>"らりるれろ") },
-            "go_wa": { label: "わ行×10", color: "bg-sky-400",  noShuffle: true, words: Array.from({length:10}, ()=>"わをん") },
-            "gojuon": { label: "ごじゅうおん（じゅんばん）", color: "bg-blue-500", noShuffle: true, desc: "あ行からわ行まで じゅんばんどおりにうとう！\nぜんぶで10もん。どこまでおぼえているかな？", words: ["あいうえお","かきくけこ","さしすせそ","たちつてと","なにぬねの","はひふへほ","まみむめも","やゆよ","らりるれろ","わをん"] },
-            "bo_a": { label: "あ段×5", desc: "たてによむと「あ・か・さ・た・な・は・ま・や・ら・わ」！", color: "bg-pink-400", noShuffle: true, words: Array.from({length:5}, ()=>"あかさたなはまやらわ") },
-            "bo_i": { label: "い段×5", desc: "たてによむと「い・き・し・ち・に・ひ・み・り」！", color: "bg-pink-400", noShuffle: true, words: Array.from({length:5}, ()=>"いきしちにひみりい") },
-            "bo_u": { label: "う段×5", desc: "たてによむと「う・く・す・つ・ぬ・ふ・む・ゆ・る」！", color: "bg-pink-400", noShuffle: true, words: Array.from({length:5}, ()=>"うくすつぬふむゆるう") },
-            "bo_e": { label: "え段×5", desc: "たてによむと「え・け・せ・て・ね・へ・め・れ」！", color: "bg-pink-400", noShuffle: true, words: Array.from({length:5}, ()=>"えけせてねへめれえ") },
-            "bo_o": { label: "お段×5", desc: "たてによむと「お・こ・そ・と・の・ほ・も・よ・ろ・を」！", color: "bg-pink-400", noShuffle: true, words: Array.from({length:5}, ()=>"おこそとのほもよろを") },
-            "youon": { label: "きゃ〜りゃ行", desc: "「きゃきゅきょ」のような 小さい「ゃゅょ」をつかった文字だよ。\n2文字セットで1つのかな。ゆっくり確認しながらうとう！", color: "bg-purple-500", words: [
-                "きゃきゅきょ","しゃしゅしょ","ちゃちゅちょ","にゃにゅにょ","ひゃひゅひょ","みゃみゅみょ","りゃりゅりょ",
-                "きゃきゅきょ","しゃしゅしょ","ちゃちゅちょ","にゃにゅにょ","ひゃひゅひょ","みゃみゅみょ","りゃりゅりょ"
-            ] },
-            "2a": { label: "2文字（あ）", color: "bg-orange-400", words: ["あか","あお","あめ","あり","あし","あな","あさ","あと","あい","あま"] },
-            "2i": { label: "2文字（い）", color: "bg-orange-400", words: ["いえ","いか","いし","いぬ","いま","いけ","いも","いろ","いと","いわ"] },
-            "2u": { label: "2文字（う）", color: "bg-orange-400", words: ["うみ","うし","うた","うま","うそ","うで","うに","うめ","うら","うえ"] },
-            "2e": { label: "2文字（え）", color: "bg-orange-400", words: ["えき","えだ","えほん","えり","えのき","えびす","えがお","えつき","えんぴつ","えり"] },
-            "2o": { label: "2文字（お）", color: "bg-orange-400", words: ["おに","おか","おと","おや","おす","おり","おき","おも","おかし","おそら"] },
-            "school": { label: "がっこう", color: "bg-teal-500", words: ["おはよう","ありがとう","ごめんなさい","てつだって","かして","いっしょに","わからない","さようなら","やめて","またね"] },
-            
-            "soc4_all": { 
-                label: "小4 社会", color: "bg-amber-500", study: true, desc: "小4社会の大事なことばをうとう！\n⭐ポイント3倍！",
-                words: [
-                    { display: "県庁所在地", ruby: "けんちょうしょざいち" }, { display: "持続可能な社会", ruby: "じぞくかのうなしゃかい" },
-                    { display: "都道府県", ruby: "とどうふけん" }, { display: "浄水場", ruby: "じょうすいじょう" },
-                    { display: "避難所", ruby: "ひなんじょ" }, { display: "再利用", ruby: "さいりよう" },
-                    { display: "資源", ruby: "しげん" }, { display: "不燃ごみ", ruby: "ふねんごみ" },
-                    { display: "清掃工場", ruby: "せいそうこうじょう" }, { display: "埋め立て地", ruby: "うめたてち" },
-                    { display: "下水道", ruby: "げすいどう" }, { display: "ダム", ruby: "だむ" },
-                    { display: "分別の徹底", ruby: "ぶんべつのてってい" }, { display: "太陽光発電", ruby: "たいようこうはつでん" },
-                    { display: "節水", ruby: "せっすい" }
-                ] 
-            },
-            "map_all": { 
-                label: "地図記号", color: "bg-amber-600", study: true, desc: "地図にのっている記号の読み方をうとう！\n⭐ポイント3倍！",
-                words: [
-                    { display: "<img src='./images/kouban.svg' class='w-10 h-10'>", kanji: "交番", ruby: "こうばん" },
-                    { display: "<img src='./images/shoubousho.svg' class='w-10 h-10'>", kanji: "消防署", ruby: "しょうぼうしょ" },
-                    { display: "<img src='./images/jinja.svg' class='w-10 h-10'>", kanji: "神社", ruby: "じんじゃ" },
-                    { display: "<img src='./images/toshokan.svg' class='w-10 h-10'>", kanji: "図書館", ruby: "としょかん" },
-                    { display: "<img src='./images/hakubutsukan.svg' class='w-10 h-10'>", kanji: "博物館", ruby: "はくぶつかん" },
-                    { display: "<img src='./images/shiroato.png' class='w-10 h-10'>", kanji: "城跡", ruby: "しろあと" },
-                    { display: "<img src='./images/onsen.svg' class='w-10 h-10'>", kanji: "温泉", ruby: "おんせん" }
-                ] 
-            },
-            "sci_star": { label: "小4 理科（星）", color: "bg-indigo-600", study: true, words: [
-                { display: "夏の大三角", ruby: "なつのだいさんかく" }, { display: "オリオン座", ruby: "おりおんざ" },
-                { display: "北極星", ruby: "ほっきょくせい" }, { display: "カシオペヤ座", ruby: "かしおぺやざ" },
-                { display: "月食", ruby: "げっしょく" }, { display: "満月", ruby: "まんげつ" },
-                { display: "三日月", ruby: "みかづき" }, { display: "天の川", ruby: "あまのがわ" },
-                { display: "さそり座", ruby: "さそりざ" }, { display: "冬の大三角", ruby: "ふゆのだいさんかく" }
-            ]},
-            "math_shape": { label: "小4 算数（図形）", color: "bg-emerald-600", study: true, words: [
-                { display: "平行四辺形", ruby: "へいこうしへんけい" }, { display: "ひし形", ruby: "ひしがた" },
-                { display: "台形", ruby: "だいけい" }, { display: "垂直", ruby: "すいちょく" },
-                { display: "平行", ruby: "へいこう" }, { display: "対角線", ruby: "たいかくせん" },
-                { display: "分度器", ruby: "ぶんどき" }, { display: "角度", ruby: "かくど" },
-                { display: "面積", ruby: "めんせき" }, { display: "直角", ruby: "ちょっかく" }
-            ]},
-            "kokugo_idiom": { label: "小4 国語（慣用句）", color: "bg-red-400", study: true, words: [
-                { display: "耳を貸す", ruby: "みみをかす" }, { display: "目が回る", ruby: "めがまわる" },
-                { display: "口を出す", ruby: "くちをだす" }, { display: "手を引く", ruby: "てをひく" },
-                { display: "足が出る", ruby: "あしがでる" }, { display: "胸を張る", ruby: "むねをはる" },
-                { display: "腹が立つ", ruby: "はらがたつ" }, { display: "肩を並べる", ruby: "かたをならべる" },
-                { display: "首を長くする", ruby: "くびをながくする" }, { display: "背伸びする", ruby: "せのびする" }
-            ]}
+        // =====================================================
+        // スプレッドシート連携（GAS）の設定
+        // =====================================================
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbym5DEhUa636wkylbL8fEdxI2T_XBeDUUk6hS4DfndiER4WESmAabfyyIyYMfU6r6I/exec";
+
+        // アプリ内で保持する全問題データ（初期データとして基本ステージを定義）
+        let MASTER_DATA = {
+            "base_stages": {
+                label: "きほんステージ",
+                subjects: {
+                    "gojuon": {
+                        label: "五十音",
+                        categories: {
+                            "go_a":  { label: "あ行×10", color: "bg-sky-400",  noShuffle: true, study: false, words: Array.from({length:10}, ()=>"あいうえお") },
+                            "go_ka": { label: "か行×10", color: "bg-sky-400",  noShuffle: true, study: false, words: Array.from({length:10}, ()=>"かきくけこ") },
+                            "go_sa": { label: "さ行×10", color: "bg-sky-400",  noShuffle: true, study: false, words: Array.from({length:10}, ()=>"さしすせそ") },
+                            "go_ta": { label: "た行×10", color: "bg-sky-400",  noShuffle: true, study: false, words: Array.from({length:10}, ()=>"たちつてと") },
+                            "go_na": { label: "な行×10", color: "bg-sky-400",  noShuffle: true, study: false, words: Array.from({length:10}, ()=>"なにぬねの") },
+                            "go_ha": { label: "は行×10", color: "bg-sky-400",  noShuffle: true, study: false, words: Array.from({length:10}, ()=>"はひふへほ") },
+                            "go_ma": { label: "ま行×10", color: "bg-sky-400",  noShuffle: true, study: false, words: Array.from({length:10}, ()=>"まみむめも") },
+                            "go_ya": { label: "や行×10", color: "bg-sky-400",  noShuffle: true, study: false, words: Array.from({length:10}, ()=>"やゆよ") },
+                            "go_ra": { label: "ら行×10", color: "bg-sky-400",  noShuffle: true, study: false, words: Array.from({length:10}, ()=>"らりるれろ") },
+                            "go_wa": { label: "わ行×10", color: "bg-sky-400",  noShuffle: true, study: false, words: Array.from({length:10}, ()=>"わをん") },
+                            "gojuon_all": { label: "ごじゅうおん（じゅんばん）", color: "bg-blue-500", noShuffle: true, study: false, desc: "あ行からわ行まで じゅんばんどおりにうとう！\nぜんぶで10もん。どこまでおぼえているかな？", words: ["あいうえお","かきくけこ","さしすせそ","たちつてと","なにぬねの","はひふへほ","まみむめも","やゆよ","らりるれろ","わをん"] },
+                            "youon": { label: "きゃ〜りゃ行", desc: "「きゃきゅきょ」のような 小さい「ゃゅょ」をつかった文字だよ。\n2文字セットで1つのかな。ゆっくり確認しながらうとう！", color: "bg-purple-500", study: false, words: ["きゃきゅきょ","しゃしゅしょ","ちゃちゅちょ","にゃにゅにょ","ひゃひゅひょ","みゃみゅみょ","りゃりゅりょ","きゃきゅきょ","しゃしゅしょ","ちゃちゅちょ","にゃにゅにょ","ひゃひゅひょ","みゃみゅみょ","りゃりゅりょ"] }
+                        }
+                    },
+                    "boin": {
+                        label: "母音くくり",
+                        categories: {
+                            "bo_a": { label: "あ段×5", desc: "たてによむと「あ・か・さ・た・な・は・ま・や・ら・わ」！", color: "bg-pink-400", noShuffle: true, study: false, words: Array.from({length:5}, ()=>"あかさたなはまやらわ") },
+                            "bo_i": { label: "い段×5", desc: "たてによむと「い・き・し・ち・に・ひ・み・い・り・い」！", color: "bg-pink-400", noShuffle: true, study: false, words: Array.from({length:5}, ()=>"いきしちにひみいりい") },
+                            "bo_u": { label: "う段×5", desc: "たてによむと「う・く・す・つ・ぬ・ふ・む・ゆ・る・う」！", color: "bg-pink-400", noShuffle: true, study: false, words: Array.from({length:5}, ()=>"うくすつぬふむゆるう") },
+                            "bo_e": { label: "え段×5", desc: "たてによむと「え・け・せ・て・ね・へ・め・え・れ・え」！", color: "bg-pink-400", noShuffle: true, study: false, words: Array.from({length:5}, ()=>"えけせてねへめえれえ") },
+                            "bo_o": { label: "お段×5", desc: "たてによむと「お・こ・そ・と・の・ほ・も・よ・ろ・を」！", color: "bg-pink-400", noShuffle: true, study: false, words: Array.from({length:5}, ()=>"おこそとのほもよろを") }
+                        }
+                    },
+                    "words": {
+                        label: "言葉のきほん",
+                        categories: {
+                            "2a": { label: "2文字（あ）", color: "bg-orange-400", study: false, words: ["あか","あお","あめ","あり","あし","あな","あさ","あと","あい","あま"] },
+                            "2i": { label: "2文字（い）", color: "bg-orange-400", study: false, words: ["いえ","いか","いし","いぬ","いま","いけ","いmo","いろ","いと","いわ"] },
+                            "2u": { label: "2文字（う）", color: "bg-orange-400", study: false, words: ["うmi","うし","うた","うま","うそ","うde","うに","うめ","うra","うえ"] },
+                            "2e": { label: "2文字（え）", color: "bg-orange-400", study: false, words: ["えき","えda","えri","えん","えto","えbi","えdo","えら","える","えい"] },
+                            "2o": { label: "2文字（お）", color: "bg-orange-400", study: false, words: ["おに","おか","おto","おya","おsu","おり","おき","おmo","おji","おba"] },
+                            "school": { label: "がっこう", color: "bg-teal-500", study: false, words: ["おはよう","ありがとう","ごめんなさい","てつだって","かして","いっしょに","わからない","さようなら","やめて","またね"] }
+                        }
+                    }
+                }
+            }
         };
 
-        // --- 2. ローマ字変換ロジック（柔軟・分岐許容型） ---
+        // フラットな問題データ検索用のキャッシュバッファ
+        let FLAT_LEVEL_DATA = {};
+        
+        // 教科軸、学年軸の仕分け用グローバルバッファ
+        let SUBJECT_MAP = {}; // 教科ID -> { label: 教科名, grades: { 学年ID -> { label: 学年名, categories: {...} } } }
+
+        // スプレッドシートからデータを取得する関数
+        async function fetchSpreadsheetData() {
+            if (!GAS_URL || GAS_URL.includes("ここにコピーした")) {
+                rebuildIndexes();
+                return;
+            }
+            try {
+                const response = await fetch(GAS_URL);
+                const sheetData = await response.json();
+                
+                // スプレッドシートのデータをMASTER_DATAにマージ
+                for (const gId in sheetData) {
+                    MASTER_DATA[gId] = sheetData[gId];
+                }
+                rebuildIndexes();
+            } catch (error) {
+                console.error("データの取得に失敗しました。ローカルデータで起動します:", error);
+                rebuildIndexes();
+            }
+        }
+
+        // データの再集計・インデックス作成ロジック（学年軸・教科軸のピボット処理）
+        function rebuildIndexes() {
+            FLAT_LEVEL_DATA = {};
+            SUBJECT_MAP = {};
+
+            for (const gId in MASTER_DATA) {
+                const grade = MASTER_DATA[gId];
+                
+                // 1. フラット検索用のキャッシュ生成
+                for (const sId in grade.subjects) {
+                    const subject = grade.subjects[sId];
+                    for (const cId in subject.categories) {
+                        FLAT_LEVEL_DATA[cId] = subject.categories[cId];
+                    }
+                }
+
+                // 2. 教科軸（SUBJECT_MAP）の構築 (base_stagesは除外)
+                if (gId !== "base_stages") {
+                    for (const sId in grade.subjects) {
+                        const subject = grade.subjects[sId];
+                        
+                        if (!SUBJECT_MAP[sId]) {
+                            SUBJECT_MAP[sId] = {
+                                label: subject.label,
+                                grades: {}
+                            };
+                        }
+                        
+                        if (!SUBJECT_MAP[sId].grades[gId]) {
+                            SUBJECT_MAP[sId].grades[gId] = {
+                                label: grade.label,
+                                categories: {}
+                            };
+                        }
+                        
+                        // カテゴリ（単元）をコピー
+                        for (const cId in subject.categories) {
+                            SUBJECT_MAP[sId].grades[gId].categories[cId] = subject.categories[cId];
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- 2. ローマ字変換ロジック ---
         const ROMAJI_MAP = {
             'あ':['a'],'い':['i'],'う':['u'],'え':['e'],'お':['o'],
             'か':['ka'],'き':['ki'],'く':['ku'],'け':['ke'],'こ':['ko'],
@@ -206,12 +252,9 @@
             'ー':['-']
         };
 
-        // 全ての有効なローマ字パターンの配列を生成する関数（先頭ほど推奨＝訓令式ベース）
         function getValidRomajis(kana) {
             if (!kana || kana.length === 0) return [""];
             let res = [];
-
-            // 拗音など2文字マッチ
             if (kana.length >= 2) {
                 const two = kana.substring(0, 2);
                 if (ROMAJI_MAP[two]) {
@@ -222,39 +265,23 @@
                     return res;
                 }
             }
-
             const one = kana[0];
-
-            // 「ん」の特別処理
             if (one === 'ん') {
                 const suffixes = getValidRomajis(kana.substring(1));
-                // 次に母音・や行・な行が来る場合は「nn」必須
                 const requiresNN = kana.length > 1 && /^[あいうえおやゆよなにぬねの]/.test(kana[1]);
                 for (const s of suffixes) {
-                    if (requiresNN) {
-                        res.push('nn' + s);
-                    } else {
-                        res.push('n' + s);
-                        res.push('nn' + s);
-                    }
+                    if (requiresNN) { res.push('nn' + s); } else { res.push('n' + s); res.push('nn' + s); }
                 }
                 return res;
             }
-
-            // 「っ」の特別処理
             if (one === 'っ') {
                 const suffixes = getValidRomajis(kana.substring(1));
                 for (const s of suffixes) {
-                    if (s.length > 0 && /^[a-z]/.test(s[0]) && !/^[aiueo]/.test(s[0])) {
-                        res.push(s[0] + s); // 次の子音を重ねる
-                    }
-                    res.push('xtu' + s);
-                    res.push('ltu' + s);
+                    if (s.length > 0 && /^[a-z]/.test(s[0]) && !/^[aiueo]/.test(s[0])) { res.push(s[0] + s); }
+                    res.push('xtu' + s); res.push('ltu' + s);
                 }
                 return res;
             }
-
-            // 通常の1文字マッチ
             if (ROMAJI_MAP[one]) {
                 const suffixes = getValidRomajis(kana.substring(1));
                 for (const r of ROMAJI_MAP[one]) {
@@ -262,12 +289,8 @@
                 }
                 return res;
             }
-
-            // マップにない文字（そのまま通す）
             const suffixes = getValidRomajis(kana.substring(1));
-            for (const s of suffixes) {
-                res.push(one + s);
-            }
+            for (const s of suffixes) { res.push(one + s); }
             return res;
         }
 
@@ -292,7 +315,6 @@
             }
             return html;
         }
-
 
         // =====================================================
         // アカウント管理 
@@ -323,9 +345,7 @@
                     app.innerHTML = `
                         <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;background:linear-gradient(135deg,#0f0c29,#1a1a4e,#24243e);">
                             <h1 style="font-size:1.5rem;font-weight:900;color:white;margin-bottom:1.5rem;">${editingUser ? 'プロフィールをなおす' : 'あたらしくつくる'}</h1>
-                            <input id="profile-name-input" type="text" placeholder="なまえ" value="${newName}"
-                                style="width:100%;max-width:320px;text-align:center;font-size:1.4rem;font-weight:700;padding:0.75rem 1rem;border-radius:0.75rem;border:3px solid #a78bfa;background:white;outline:none;margin-bottom:1.25rem;color:#1e1b4b;"
-                            />
+                            <input id="profile-name-input" type="text" placeholder="なまえ" value="${newName}" style="width:100%;max-width:320px;text-align:center;font-size:1.4rem;font-weight:700;padding:0.75rem 1rem;border-radius:0.75rem;border:3px solid #a78bfa;background:white;outline:none;margin-bottom:1.25rem;color:#1e1b4b;"/>
                             <div style="width:100%;max-width:320px;margin-bottom:1.25rem;">
                                 <p style="font-size:0.75rem;font-weight:700;color:#c4b5fd;text-align:center;margin-bottom:0.5rem;">アイコンをえらぶ</p>
                                 <div id="icon-grid" style="display:grid;grid-template-columns:repeat(8,1fr);gap:0.3rem;background:rgba(255,255,255,0.08);border-radius:0.75rem;padding:0.6rem;max-height:9rem;overflow-y:auto;">
@@ -411,6 +431,14 @@
                 const u = await db.users.get(userId);
                 if (!u) return;
                 currentUser = u;
+                
+                app.innerHTML = `
+                    <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#0f0c29,#1a1a4e,#24243e);color:white;">
+                        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500 mb-4"></div>
+                        <p class="font-bold text-lg text-purple-300">データを読み込んでいるよ。ちょっとまってね...</p>
+                    </div>
+                `;
+                await fetchSpreadsheetData();
                 renderHome();
             };
 
@@ -445,11 +473,24 @@
             isPlaying: false,
             spawnTimer: 0,
             spawnInterval: 200,
-            lastTime: 0
+            lastTime: 0,
+            
+            // ナビゲーション制御
+            currentView: 'top',      // 'top', 'base_stages', 'grade_detail', 'subject_detail'
+            activeTargetId: null     // 選択された学年ID、または教科ID
         };
 
         function loadTotalPoints() { return parseInt(localStorage.getItem('taikun_total_points') || '0'); }
         function saveTotalPoints(points) { localStorage.setItem('taikun_total_points', points); }
+
+        function loadClearRecords() { return JSON.parse(localStorage.getItem('taikun_clear_records') || '{}'); }
+        function saveClearRecord(levelId, gameLevel) {
+            const records = loadClearRecords();
+            if (!records[levelId] || records[levelId] < gameLevel) {
+                records[levelId] = gameLevel;
+                localStorage.setItem('taikun_clear_records', JSON.stringify(records));
+            }
+        }
 
         const app = document.getElementById('app');
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -459,33 +500,66 @@
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
             osc.connect(gain); gain.connect(audioCtx.destination);
-            
             if (type === 'hit') {
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+                osc.type = 'sine'; osc.frequency.setValueAtTime(800, audioCtx.currentTime);
                 osc.frequency.exponentialRampToValueAtTime(1200, audioCtx.currentTime + 0.05);
-                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
                 osc.start(); osc.stop(audioCtx.currentTime + 0.1);
             } else if (type === 'damage') {
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, audioCtx.currentTime);
                 osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.3);
-                gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                gain.gain.setValueAtTime(0.2, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
                 osc.start(); osc.stop(audioCtx.currentTime + 0.3);
             }
         }
 
         const CATEGORY_EMOJI = {
-            go_a:'あ', go_ka:'か', go_sa:'さ', go_ta:'た', go_na:'な',
-            go_ha:'は', go_ma:'ま', go_ya:'や', go_ra:'ら', go_wa:'わ',
-            gojuon:'📖', bo_a:'🅐', bo_i:'🅘', bo_u:'🅤', bo_e:'🅔', bo_o:'🅞', youon:'🎵', 
-            '2a':'あ', '2i':'い', '2u':'う', '2e':'え', '2o':'お',
-            school:'🏫', soc4_all:'🗾', sci_star:'⭐', map_all:'🗺️',
-            math_shape:'📐', kokugo_idiom:'💬'
+            go_a:'あ', go_ka:'か', go_sa:'さ', go_ta:'た', go_na:'な', go_ha:'は', go_ma:'ま', go_ya:'や', go_ra:'ら', go_wa:'わ',
+            gojuon_all:'📖', youon:'🎵', bo_a:'🅐', bo_i:'🅘', bo_u:'🅤', bo_e:'🅔', bo_o:'🅞',
+            '2a':'あ', '2i':'い', '2u':'う', '2e':'え', '2o':'お', school:'🏫',
+            soc4_all:'🗾', sci_star:'⭐', map_all:'🗺️', math_shape:'📐', kokugo_idiom:'💬'
         };
 
+        const SUBJECT_EMOJI = {
+            kok: '💬 国語', mat: '📐 算数', sci: '⭐ 理科', soc: '🗺️ 社会', eng: '🚀 英語',
+            gojuon: '📖 五十音', boin: '🅤 母音', words: '🏫 きほん'
+        };
+
+        // カード生成用の共通コンポーネントヘルパー
+        function generateCategoryCardHTML(cId, lv) {
+            const emoji = CATEGORY_EMOJI[cId] || '🎮';
+            const isStudy = lv.study;
+            const wordCount = lv.words.length;
+            
+            const colorMap = {
+                'bg-blue-500':   ['#3b82f6','#1d4ed8'], 'bg-orange-400': ['#fb923c','#ea580c'],
+                'bg-teal-500':   ['#14b8a6','#0f766e'], 'bg-amber-500':  ['#f59e0b','#b45309'],
+                'bg-amber-600':  ['#d97706','#92400e'], 'bg-indigo-600': ['#4f46e5','#3730a3'],
+                'bg-emerald-600':['#059669','#065f46'], 'bg-orange-500': ['#f97316','#c2410c'],
+                'bg-red-400':    ['#f87171','#dc2626'], 'bg-sky-400':    ['#38bdf8','#0284c7'],
+                'bg-pink-400':   ['#f472b6','#db2777'], 'bg-purple-500': ['#a855f7','#7e22ce'],
+                'bg-violet-500': ['#8b5cf6','#6d28d9']
+            };
+            const [c1, c2] = colorMap[lv.color] || ['#6366f1','#4338ca'];
+            
+            const clearEmojis = ['🐢','🐇','🚀'];
+            const clearedLevel = loadClearRecords()[cId];
+            const clearBadge = clearedLevel
+                ? `<div style="position:absolute;bottom:5px;right:6px;font-size:1rem;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.4));">${clearEmojis[clearedLevel - 1]}</div>`
+                : '';
+
+            return `
+                <button onclick="showGamePopup('${cId}')" class="card-btn relative w-full p-4 rounded-xl text-white border-none cursor-pointer text-left shadow-lg" style="background:linear-gradient(135deg,${c1},${c2});">
+                    ${isStudy ? '<span class="study-badge">×3pt ⭐</span>' : ''}
+                    <div style="font-size:1.6rem;margin-bottom:0.2rem;line-height:1;">${emoji}</div>
+                    <div style="font-weight:900;font-size:0.95rem;line-height:1.2;">${lv.label}</div>
+                    <div style="font-size:0.65rem;opacity:0.75;margin-top:3px;">${wordCount}もん</div>
+                    ${clearBadge}
+                </button>
+            `;
+        }
+
+        // --- 4. ホーム画面（仕分け済トップメニュー＆一画面一覧対応） ---
         function renderHome() {
             const totalPoints = loadTotalPoints();
 
@@ -494,31 +568,151 @@
                 return `<button id="lv-btn-${lv}" onclick="selectLevel(${lv})" style="flex:1;padding:0.6rem 0.4rem;border-radius:0.75rem;font-weight:900;font-size:0.85rem;border:2px solid ${active ? '#7c3aed' : 'rgba(255,255,255,0.1)'};background:${active ? 'linear-gradient(135deg,#7c3aed,#6d28d9)' : 'rgba(255,255,255,0.06)'};color:${active ? '#fff' : 'rgba(255,255,255,0.5)'};cursor:pointer;transition:all 0.2s;box-shadow:${active ? '0 4px 16px rgba(124,58,237,0.5)' : 'none'};">${emoji} ${label}<div style="font-size:0.65rem;margin-top:2px;opacity:0.8;">${desc}</div></button>`;
             }
 
-            function categoryCard(id) {
-                const lv = LEVEL_DATA[id];
-                if(!lv) return '';
-                const emoji = CATEGORY_EMOJI[id] || '🎮';
-                const isStudy = lv.study;
-                const wordCount = lv.words.length;
-                const colorMap = {
-                    'bg-blue-500':   ['#3b82f6','#1d4ed8'], 'bg-orange-400': ['#fb923c','#ea580c'],
-                    'bg-teal-500':   ['#14b8a6','#0f766e'], 'bg-amber-500':  ['#f59e0b','#b45309'],
-                    'bg-amber-600':  ['#d97706','#92400e'], 'bg-indigo-600': ['#4f46e5','#3730a3'],
-                    'bg-emerald-600':['#059669','#065f46'], 'bg-orange-500': ['#f97316','#c2410c'],
-                    'bg-red-400':    ['#f87171','#dc2626'], 'bg-sky-400':    ['#38bdf8','#0284c7'],
-                    'bg-pink-400':   ['#f472b6','#db2777'], 'bg-purple-500': ['#a855f7','#7e22ce'],
-                    'bg-violet-500': ['#8b5cf6','#6d28d9']
-                };
-                const [c1, c2] = colorMap[lv.color] || ['#6366f1','#4338ca'];
-                return `
-                    <button onclick="showGamePopup('${id}')" class="card-btn" style="position:relative;width:100%;padding:0.75rem 0.875rem;border-radius:1rem;background:linear-gradient(135deg,${c1},${c2});color:white;border:none;cursor:pointer;text-align:left;box-shadow:0 4px 16px rgba(0,0,0,0.3);">
-                        ${isStudy ? '<span class="study-badge">×3pt ⭐</span>' : ''}
-                        <div style="font-size:1.6rem;margin-bottom:0.2rem;line-height:1;">${emoji}</div>
-                        <div style="font-weight:900;font-size:0.95rem;line-height:1.2;">${lv.label}</div>
-                        <div style="font-size:0.65rem;opacity:0.75;margin-top:3px;">${wordCount}もん</div>
-                    </button>`;
+            let mainContentHtml = "";
+            let currentPathHtml = "";
+
+            // 状態に応じた画面分岐ロジック
+            if (state.currentView === 'top') {
+                // ==========================================
+                // 【最上位メニュー】3つのカテゴリ分けを1画面に並べる
+                // ==========================================
+                currentPathHtml = `<span class="text-white font-black">🏰 どこから すすむ？ えらんでね！</span>`;
+                
+                // 学年別のリストを生成 (base_stagesは除く)
+                const gradeKeys = Object.keys(MASTER_DATA).filter(k => k !== "base_stages");
+                // 教科別のリストを生成
+                const subjectKeys = Object.keys(SUBJECT_MAP);
+
+                mainContentHtml = `
+                    <div class="flex flex-col gap-8 p-2">
+                        <div>
+                            <div class="text-sm font-black text-purple-300 mb-3 flex items-center gap-1">🎹 <span>きほんステージ (一覧)</span></div>
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                <button onclick="viewBaseStages()" class="card-btn p-5 rounded-xl text-center text-white border border-white/10 bg-gradient-to-br from-blue-500 to-indigo-600 shadow-md">
+                                    <div class="text-2xl mb-1">📖</div>
+                                    <div class="text-sm font-black">きほんを ひらく</div>
+                                    <div class="text-[0.65rem] opacity-70 mt-1">五十音・母音・ことば</div>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="text-sm font-black text-purple-300 mb-3 flex items-center gap-1">🎒 <span>がくねんから えらぶ</span></div>
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                ${gradeKeys.map(gId => {
+                                    const label = MASTER_DATA[gId].label;
+                                    return `
+                                        <button onclick="viewGradeDetail('${gId}')" class="card-btn p-5 rounded-xl text-center text-white border border-white/10 bg-gradient-to-br from-purple-600 to-indigo-800 shadow-md">
+                                            <div class="text-2xl mb-1">🎒</div>
+                                            <div class="text-base font-black">${label}</div>
+                                        </button>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="text-sm font-black text-purple-300 mb-3 flex items-center gap-1">📚 <span>きょうかから えらぶ</span></div>
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                ${subjectKeys.map(sId => {
+                                    const label = SUBJECT_MAP[sId].label;
+                                    const emojiLabel = SUBJECT_EMOJI[sId] || `📚 ${label}`;
+                                    return `
+                                        <button onclick="viewSubjectDetail('${sId}')" class="card-btn p-5 rounded-xl text-center text-white border border-white/10 bg-slate-800/90 shadow-md">
+                                            <div class="text-base font-black text-purple-200">${emojiLabel}</div>
+                                        </button>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+            } else if (state.currentView === 'base_stages') {
+                // ==========================================
+                // 【きほんステージ】すべてが並ぶ一覧表示
+                // ==========================================
+                currentPathHtml = `
+                    <button onclick="backToTop()" class="text-purple-400 hover:underline">🏰 トップ</button> 
+                    <span class="mx-2 text-slate-500">➔</span> 
+                    <span class="text-white font-black">📖 きほんステージ 一覧</span>
+                `;
+
+                const subjects = MASTER_DATA["base_stages"].subjects;
+                mainContentHtml = `
+                    <div class="flex flex-col gap-6 p-2">
+                        ${Object.keys(subjects).map(sId => {
+                            const sub = subjects[sId];
+                            return `
+                                <div class="bg-slate-900/30 border border-white/5 rounded-xl p-4">
+                                    <div class="text-sm font-black text-slate-300 border-b border-slate-700 pb-1.5 mb-3">${SUBJECT_EMOJI[sId] || sub.label}</div>
+                                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                        ${Object.keys(sub.categories).map(cId => generateCategoryCardHTML(cId, sub.categories[cId])).join('')}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+
+            } else if (state.currentView === 'grade_detail') {
+                // ==========================================
+                // 【学年別一覧】その学年の教科が1画面にズラリ
+                // ==========================================
+                const grade = MASTER_DATA[state.activeTargetId];
+                currentPathHtml = `
+                    <button onclick="backToTop()" class="text-purple-400 hover:underline">🏰 トップ</button> 
+                    <span class="mx-2 text-slate-500">➔</span> 
+                    <span class="text-white font-black">🎒 ${grade.label} の教科別一覧</span>
+                `;
+
+                mainContentHtml = `
+                    <div class="flex flex-col gap-6 p-2">
+                        ${Object.keys(grade.subjects).map(sId => {
+                            const sub = grade.subjects[sId];
+                            const label = SUBJECT_EMOJI[sId] || `📚 ${sub.label}`;
+                            return `
+                                <div class="bg-slate-900/30 border border-white/5 rounded-xl p-4">
+                                    <div class="text-sm font-black text-purple-300 border-b border-purple-900/50 pb-1.5 mb-3">${label}</div>
+                                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                        ${Object.keys(sub.categories).map(cId => generateCategoryCardHTML(cId, sub.categories[cId])).join('')}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+
+            } else if (state.currentView === 'subject_detail') {
+                // ==========================================
+                // 【教科別一覧】その教科の学年が1画面にズラリ
+                // ==========================================
+                const subject = SUBJECT_MAP[state.activeTargetId];
+                const label = SUBJECT_EMOJI[state.activeTargetId] || `📚 ${subject.label}`;
+                currentPathHtml = `
+                    <button onclick="backToTop()" class="text-purple-400 hover:underline">🏰 トップ</button> 
+                    <span class="mx-2 text-slate-500">➔</span> 
+                    <span class="text-white font-black">📚 教科: ${label} の学年別一覧</span>
+                `;
+
+                mainContentHtml = `
+                    <div class="flex flex-col gap-6 p-2">
+                        ${Object.keys(subject.grades).map(gId => {
+                            const gradeGroup = subject.grades[gId];
+                            return `
+                                <div class="bg-slate-900/30 border border-white/5 rounded-xl p-4">
+                                    <div class="text-sm font-black text-amber-400 border-b border-amber-950 pb-1.5 mb-3">🎒 ${gradeGroup.label}</div>
+                                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                        ${Object.keys(gradeGroup.categories).map(cId => generateCategoryCardHTML(cId, gradeGroup.categories[cId])).join('')}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
             }
 
+            // 外側のレイアウトをレンダリング
             app.innerHTML = `
                 <div class="home-bg fade-in" style="width:100%;height:100vh;display:flex;overflow:hidden;">
                     <div class="left-panel" style="display:flex;flex-direction:column;padding:1.25rem 1rem;gap:0.75rem;overflow-y:auto;border-right:1px solid rgba(255,255,255,0.07);background:rgba(0,0,0,0.25);">
@@ -528,7 +722,7 @@
                         </div>
 
                         ${currentUser ? `
-                        <div onclick="renderProfileSelect()" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:1rem;padding:0.6rem 0.875rem;display:flex;align-items:center;gap:0.6rem;cursor:pointer;" title="ユーザーをかえる">
+                        <div onclick="backToTop(); renderProfileSelect();" style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:1rem;padding:0.6rem 0.875rem;display:flex;align-items:center;gap:0.6rem;cursor:pointer;" title="ユーザーをかえる">
                             <div style="font-size:1.4rem;width:2rem;height:2rem;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.12);border-radius:50%;">${currentUser.icon}</div>
                             <div>
                                 <div style="font-size:0.6rem;font-weight:700;color:#94a3b8;">プレイヤー</div>
@@ -572,38 +766,30 @@
                                 ガイドあり ${state.gameLevel}pt／なし ${state.gameLevel*10}pt
                             </div>
                         </div>
+
+                        ${state.currentView !== 'top' ? `
+                        <button onclick="backToTop()" class="mt-auto w-full py-2 bg-slate-700/60 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-sm transition-all border border-slate-600/30">
+                            最初にもどる
+                        </button>` : ''}
                     </div>
 
                     <div style="flex:1;padding:1.25rem 1.25rem 1rem;overflow-y:auto;display:flex;flex-direction:column;gap:1rem;">
-                        <div>
-                            <div style="font-size:0.7rem;font-weight:900;color:#94a3b8;letter-spacing:0.1em;margin-bottom:0.5rem;padding-left:2px;">🎹 五十音</div>
-                            <div style="display:grid;grid-template-columns:repeat(10,1fr);gap:0.4rem;margin-bottom:0.4rem;">
-                                ${['go_a','go_ka','go_sa','go_ta','go_na','go_ha','go_ma','go_ya','go_ra','go_wa'].map(categoryCard).join('')}
-                            </div>
-                            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.4rem;">
-                                ${['gojuon','youon'].map(categoryCard).join('')}
-                            </div>
-                            <div style="font-size:0.7rem;font-weight:900;color:#94a3b8;letter-spacing:0.1em;margin:0.5rem 0 0.4rem;padding-left:2px;">🌸 母音くくり</div>
-                            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.4rem;">
-                                ${['bo_a','bo_i','bo_u','bo_e','bo_o'].map(categoryCard).join('')}
-                            </div>
+                        <div class="bg-slate-900/40 border border-white/5 rounded-xl px-4 py-2.5 text-sm flex items-center">
+                            ${currentPathHtml}
                         </div>
-                        <div>
-                            <div style="font-size:0.7rem;font-weight:900;color:#94a3b8;letter-spacing:0.1em;margin-bottom:0.5rem;padding-left:2px;">📚 きほん</div>
-                            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.4rem;">
-                                ${['2a','2i','2u','2e','2o','school'].map(categoryCard).join('')}
-                            </div>
-                        </div>
-                        <div>
-                            <div style="font-size:0.7rem;font-weight:900;letter-spacing:0.1em;margin-bottom:0.5rem;padding-left:2px;background:linear-gradient(90deg,#fbbf24,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">⭐ べんきょう（×3ポイント）</div>
-                            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.5rem;">
-                                ${['soc4_all','sci_star','map_all','math_shape','kokugo_idiom'].map(categoryCard).join('')}
-                            </div>
+                        <div class="flex-1">
+                            ${mainContentHtml}
                         </div>
                     </div>
                 </div>
             `;
         }
+
+        // 画面切り替え用のナビゲーション関数群
+        window.viewBaseStages = () => { state.currentView = 'base_stages'; state.activeTargetId = null; renderHome(); };
+        window.viewGradeDetail = (gId) => { state.currentView = 'grade_detail'; state.activeTargetId = gId; renderHome(); };
+        window.viewSubjectDetail = (sId) => { state.currentView = 'subject_detail'; state.activeTargetId = sId; renderHome(); };
+        window.backToTop = () => { state.currentView = 'top'; state.activeTargetId = null; renderHome(); };
 
         window.toggleGuide = () => {
             state.showGuide = !state.showGuide;
@@ -621,15 +807,9 @@
                 const b = document.getElementById(`lv-btn-${n}`);
                 if (!b) return;
                 if (n === lv) {
-                    b.style.background = 'linear-gradient(135deg,#7c3aed,#6d28d9)';
-                    b.style.borderColor = '#7c3aed';
-                    b.style.color = '#fff';
-                    b.style.boxShadow = '0 4px 16px rgba(124,58,237,0.5)';
+                    b.style.background = 'linear-gradient(135deg,#7c3aed,#6d28d9)'; b.style.borderColor = '#7c3aed'; b.style.color = '#fff'; b.style.boxShadow = '0 4px 16px rgba(124,58,237,0.5)';
                 } else {
-                    b.style.background = 'rgba(255,255,255,0.06)';
-                    b.style.borderColor = 'rgba(255,255,255,0.1)';
-                    b.style.color = 'rgba(255,255,255,0.5)';
-                    b.style.boxShadow = 'none';
+                    b.style.background = 'rgba(255,255,255,0.06)'; b.style.borderColor = 'rgba(255,255,255,0.1)'; b.style.color = 'rgba(255,255,255,0.5)'; b.style.boxShadow = 'none';
                 }
             });
         };
@@ -652,9 +832,11 @@
         };
 
         window.showGamePopup = (levelId) => {
-            const lv = LEVEL_DATA[levelId];
+            const lv = FLAT_LEVEL_DATA[levelId];
+            if (!lv) return;
             const emoji = CATEGORY_EMOJI[levelId] || '🎮';
             const descHtml = (lv.desc || '').replace(/\n/g, '<br>');
+            
             const colorMap = {
                 'bg-sky-400': '#38bdf8', 'bg-blue-500': '#3b82f6', 'bg-pink-400': '#f472b6',
                 'bg-purple-500': '#a855f7', 'bg-violet-500': '#8b5cf6', 'bg-orange-400': '#fb923c',
@@ -673,9 +855,7 @@
                         <div style="font-size:3rem;line-height:1;margin-bottom:0.5rem;">${emoji}</div>
                         <div style="font-size:1.3rem;font-weight:900;color:white;">${lv.label}</div>
                     </div>
-                    <div style="background:rgba(255,255,255,0.07);border-radius:0.875rem;padding:1rem 1.125rem;margin-bottom:1.5rem;">
-                        <div style="font-size:0.9rem;font-weight:700;color:rgba(255,255,255,0.85);text-align:center;">${descHtml}</div>
-                    </div>
+                    ${descHtml ? `<div style="background:rgba(255,255,255,0.07);border-radius:0.875rem;padding:1rem 1.125rem;margin-bottom:1.5rem;"><div style="font-size:0.9rem;font-weight:700;color:rgba(255,255,255,0.85);text-align:center;">${descHtml}</div></div>` : ''}
                     <button onclick="document.getElementById('game-popup-overlay').remove(); startGame('${levelId}')" style="width:100%;padding:1rem;border-radius:999px;border:none;background:linear-gradient(135deg,${accentColor},${accentColor}cc);color:white;font-size:1.2rem;font-weight:900;cursor:pointer;">🚀 スタート！</button>
                 </div>
             `;
@@ -685,7 +865,7 @@
         window.startGame = (levelId) => {
             state.mode = 'game';
             state.currentLevel = levelId;
-            const lvDef = LEVEL_DATA[levelId];
+            const lvDef = FLAT_LEVEL_DATA[levelId];
             state.targetWords = lvDef.noShuffle ? [...lvDef.words] : [...lvDef.words].sort(() => 0.5 - Math.random());
             state.hp = 3; state.score = 0; state.enemies = []; state.spawnTimer = 0;
             state.spawnInterval = 200; state.isPlaying = true; state.lastTime = performance.now();
@@ -745,9 +925,8 @@
             const rubyText = typeof targetData === 'string' ? targetData : targetData.ruby;
             const displayLabel = targetData.kanji || rubyText;
             
-            // 全ての有効なローマ字（大文字）を配列で取得
             const validRomajis = getValidRomajis(rubyText).map(r => r.toUpperCase());
-            const displayRomaji = validRomajis[0]; // 初期表示は配列の先頭（訓令式優先）
+            const displayRomaji = validRomajis[0];
 
             const yPos = 8 + Math.random() * 42; 
             const el = document.createElement('div');
@@ -772,11 +951,7 @@
             document.getElementById('enemy-container').appendChild(el);
 
             state.enemies.push({
-                id: uniqueId,
-                word: rubyText,
-                validRomajis: validRomajis,
-                typed: "",
-                displayRomaji: displayRomaji,
+                id: uniqueId, word: rubyText, validRomajis: validRomajis, typed: "", displayRomaji: displayRomaji,
                 x: 100, y: yPos, speed: currentSpeed, element: el
             });
         }
@@ -788,16 +963,12 @@
 
             const sortedEnemies = [...state.enemies].sort((a, b) => a.x - b.x);
             
-            // ① すでに打ちかけで、かつ次の文字が一致する敵を最優先
             let target = sortedEnemies.find(en => en.typed.length > 0 && en.validRomajis.some(r => r.startsWith(en.typed + key)));
-            // ② なければ、手付かずで最初の文字が一致する敵を探す
             if (!target) target = sortedEnemies.find(en => en.validRomajis.some(r => r.startsWith(en.typed + key)));
 
             if (target) {
                 target.typed += key;
-                // 打たれたキーに合致するパターンのものだけに絞り込む
                 target.validRomajis = target.validRomajis.filter(r => r.startsWith(target.typed));
-                // 表示を動的に切り替え（一番適したパターンを再設定）
                 target.displayRomaji = target.validRomajis[0];
 
                 playSound('hit');
@@ -808,13 +979,10 @@
                 const startY = baseRect.top + baseRect.height / 2;
 
                 const beam = document.createElement('div');
-                beam.className = "laser-beam";
-                beam.style.top = startY + "px";
-                beam.style.left = startX + "px";
+                beam.className = "laser-beam"; beam.style.top = startY + "px"; beam.style.left = startX + "px";
                 
                 const rect = target.element.getBoundingClientRect();
-                const enemyX = rect.left + rect.width / 2;
-                const enemyY = rect.top + rect.height / 2;
+                const enemyX = rect.left + rect.width / 2; const enemyY = rect.top + rect.height / 2;
                 
                 beam.style.width = Math.sqrt(Math.pow(enemyX-startX,2) + Math.pow(enemyY-startY,2)) + "px";
                 beam.style.transform = `rotate(${Math.atan2(enemyY-startY, enemyX-startX) * 180 / Math.PI}deg)`;
@@ -827,11 +995,10 @@
                 target.element.classList.add('scale-110', 'border-red-500');
                 setTimeout(() => target.element.classList.remove('scale-110', 'border-red-500'), 50);
 
-                // 文字が最後まで打ち終わったか判定
                 if (target.typed === target.displayRomaji) {
                     target.element.remove();
                     state.enemies = state.enemies.filter(e => e.id !== target.id);
-                    const studyBonus = LEVEL_DATA[state.currentLevel]?.study ? 3 : 1;
+                    const studyBonus = FLAT_LEVEL_DATA[state.currentLevel]?.study ? 3 : 1;
                     state.score += (state.showGuide ? 1 : 10) * state.gameLevel * studyBonus;
                     document.getElementById('typing-score').textContent = state.score;
                     if (state.targetWords.length === 0 && state.enemies.length === 0) finishGame(true);
@@ -846,17 +1013,13 @@
 
             state.spawnTimer++;
             if (state.spawnTimer > state.spawnInterval && state.enemies.length < 4) {
-                spawnEnemy();
-                state.spawnTimer = 0;
+                spawnEnemy(); state.spawnTimer = 0;
                 if (state.spawnInterval > 80) state.spawnInterval -= 1;
             }
             
             const baseRight = document.getElementById('base-zone')?.getBoundingClientRect().right || 0;
-
             state.enemies.forEach(en => {
-                en.x -= en.speed;
-                en.element.style.left = en.x + "%";
-                en.element.style.zIndex = Math.floor(1000 - en.x * 10);
+                en.x -= en.speed; en.element.style.left = en.x + "%"; en.element.style.zIndex = Math.floor(1000 - en.x * 10);
                 if (baseRight > 0 && en.element.getBoundingClientRect().left < baseRight - 20) damageBase(en);
             });
             requestAnimationFrame(gameLoop);
@@ -865,8 +1028,7 @@
         function damageBase(enemy) {
             const enemyRect = enemy.element.getBoundingClientRect();
             const boom = document.createElement('div');
-            boom.textContent = '💥';
-            boom.style.cssText = `position:absolute;left:${enemyRect.left + enemyRect.width/2}px;top:${enemyRect.top + enemyRect.height/2}px;font-size:3rem;transform:translate(-50%,-50%);z-index:50;pointer-events:none;transition:opacity 0.5s ease,transform 0.5s ease;`;
+            boom.textContent = '💥'; boom.style.cssText = `position:absolute;left:${enemyRect.left + enemyRect.width/2}px;top:${enemyRect.top + enemyRect.height/2}px;font-size:3rem;transform:translate(-50%,-50%);z-index:50;pointer-events:none;transition:opacity 0.5s ease,transform 0.5s ease;`;
             app.appendChild(boom);
             setTimeout(() => { boom.style.opacity='0'; boom.style.transform='translate(-50%,-80%) scale(1.5)'; }, 50);
             setTimeout(() => boom.remove(), 600);
@@ -886,6 +1048,7 @@
             window.removeEventListener('keydown', handleTypingInput);
             const newTotal = loadTotalPoints() + state.score;
             saveTotalPoints(newTotal);
+            if (isClear) saveClearRecord(state.currentLevel, state.gameLevel);
             
             const overlay = document.createElement('div');
             if (isClear) {
@@ -932,6 +1095,7 @@
             }
             app.appendChild(overlay);
         }
+
         renderProfileSelect();
     </script>
 </body>
